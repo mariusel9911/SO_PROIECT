@@ -1,0 +1,28 @@
+Directory: dir1
+Inode: 1450960
+Size: 4096
+Modification time: Wed Apr 10 04:17:09 2024
+Number of links: 3
+Permissions: 755
+
+File: dir1/f2.txt
+Inode: 1450968
+Size: 0
+Modification time: Wed Apr 10 00:27:53 2024
+Number of links: 1
+Permissions: 644
+
+File: dir1/f1.txt
+Inode: 1450967
+Size: 0
+Modification time: Wed Apr 10 00:27:50 2024
+Number of links: 1
+Permissions: 644
+
+Subdirectory: dir1/dir2
+Inode: 1450969
+Size: 4096
+Modification time: Wed Apr 10 00:28:01 2024
+Number of links: 2
+Permissions: 755
+
