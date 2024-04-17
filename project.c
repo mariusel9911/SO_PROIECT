@@ -64,39 +64,96 @@ int has_snapshot(const char *dirname, const char *output_dir){
 void create_snapshot(const char *dirname, const char *output_dir){
 
     char snapshot_name[MAX_FILENAME_LEN];
-    strcpy(snapshot_name,"");
-    snprintf(snapshot_name,MAX_FILENAME_LEN, "%s/%s.snapshot",output_dir, dirname);
+    char old_snapshot_name[MAX_FILENAME_LEN];
+    
+    /// Ne construim path ul
+    snprintf(snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot", output_dir, dirname);
+    snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot_old", output_dir, dirname);
 
-    /// 0 -> octal, 6 -> wr- permissions, 4 -> r-- permissions
-    int snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    // Verificam daca nu avem deja un snapshot
+    int snapshot_fd = open(snapshot_name, O_RDONLY);
 
-    if (snapshot_fd < 0) {
-        perror("Error creating snapshot file");
-        exit(EXIT_FAILURE);
+    if (snapshot_fd >= 0) {
+        // Avem un snapshot, deci il citim cu un buffer (pt simplitate am folosit buffer static :) )
+        char existing_snapshot_text[BUFFER_SIZE];
+        ssize_t bytes_read = read(snapshot_fd, existing_snapshot_text, BUFFER_SIZE);
+
+        if (bytes_read < 0) {
+            perror("Error reading existing snapshot");
+            exit(EXIT_FAILURE);
+        }
+
+        close(snapshot_fd);
+
+        /// Extragem metadatele pentru directorul apelat si facem noul snapshot
+        FileMetadata dir_metadata;
+        if (get_file_metadata(dirname, &dir_metadata) != -1) {
+            char new_snapshot_text[BUFFER_SIZE];
+            snprintf(new_snapshot_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
+                     dir_metadata.name, 
+                     (unsigned long)dir_metadata.inode, 
+                     (long)dir_metadata.size, 
+                     ctime(&dir_metadata.mtime), 
+                     (long)dir_metadata.nlinks, 
+                     dir_metadata.permissions
+                     );
+            
+            /// Daca exista modificari redenumim fisierul
+            if (bytes_read != strlen(new_snapshot_text) || memcmp(existing_snapshot_text, new_snapshot_text, bytes_read) != 0) {
+                /// Redenumim
+                if (rename(snapshot_name, old_snapshot_name) != 0) {
+                    perror("Error renaming old snapshot");
+                    exit(EXIT_FAILURE);
+                }
+                printf("Old snapshot renamed: %s\n", old_snapshot_name);
+
+                /// Il creem pe cel nou cu numele .snapshot
+                int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                if (new_snapshot_fd < 0) {
+                    perror("Error creating snapshot file");
+                    exit(EXIT_FAILURE);
+                }
+
+                write(new_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
+                close(new_snapshot_fd);
+                printf("Snapshot updated for directory: %s\n", dirname);
+
+            } else {
+                /// Nu avem nici o modificare
+                printf("No modification detected. Snapshot remains unchanged for directory: %s\n", dirname);
+            }
+        }
+    } else {
+        // Nu avem snapshot deci creem unul
+        int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (new_snapshot_fd < 0) {
+            perror("Error creating snapshot file");
+            exit(EXIT_FAILURE);
+        }
+
+        // De data asta cu metadatele creem snapshotul pt ca nu avem cu cine compara
+        FileMetadata dir_metadata;
+        if (get_file_metadata(dirname, &dir_metadata) != -1) {
+            char metadata_text[BUFFER_SIZE];
+            snprintf(metadata_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
+                     dir_metadata.name, 
+                     (unsigned long)dir_metadata.inode, 
+                     (long)dir_metadata.size, 
+                     ctime(&dir_metadata.mtime), 
+                     (long)dir_metadata.nlinks, 
+                     dir_metadata.permissions
+                     );
+            write(new_snapshot_fd, metadata_text, strlen(metadata_text));
+        }
+
+        /// Recursiv facem update la tot ce e in director
+        create_recursive_snapshot(dirname, new_snapshot_fd);
+
+        close(new_snapshot_fd);
+        printf("Snapshot created successfully for directory: %s\n", dirname);
     }
-
-    /// Culegem metadatele pentru directorul tarcget apoi le asfisam in snapshot
-    FileMetadata dir_metadata;
-    if (get_file_metadata(dirname, &dir_metadata) != -1) {
-        char metadata_text[BUFFER_SIZE];
-        snprintf(metadata_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
-                 dir_metadata.name, 
-                 (unsigned long)dir_metadata.inode, 
-                 (long)dir_metadata.size, 
-                 ctime(&dir_metadata.mtime), 
-                 (long)dir_metadata.nlinks, 
-                 dir_metadata.permissions
-                 );
-        write(snapshot_fd, metadata_text, strlen(metadata_text));
-    }
-
-    /// Parcurgem restul directorului
-    create_recursive_snapshot(dirname, snapshot_fd);
-
-    close(snapshot_fd);
-    /// YAY AM REUSIT SA CREEM UN SNAPSHOT
-    printf("Snapshot created successfully for directory: %s\n", dirname);
 }
+
 
 /// Scriere intreaga a ierarhii de directoare inc. subdir
 void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
@@ -227,7 +284,7 @@ int main(int argc, char *argv[]){
                 perror("lstat for output directory test");
                 exit(EXIT_FAILURE);
             }
-            
+
             /// verificam daca argumentul dupa -o este director
             if(!S_ISDIR(sb.st_mode)){
 
