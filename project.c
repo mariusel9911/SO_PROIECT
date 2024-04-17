@@ -167,11 +167,71 @@ int main(int argc, char *argv[]){
     struct stat sb;
 
     /// Verificare numar argumente
-    if (argc != 2){
+    if (argc < 3 || argc > 13){
 
-        fprintf(stderr, "Invalid number of arguments! Usage: %s <dir_name>\n", argv[0]);
+        fprintf(stderr, "Invalid number of arguments!\n Usage: %s <dir_name_0> ... -o <output_dir> ... <dir_name_n>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+    /// Verificare argumente identice + Daca avem director de output
+    int i;
+    int j;
+    int poz_dir_output = -1;
+
+    for (i = 1; i < argc; i++){
+
+        for (j = i + 1; j < argc; j++){
+            if (strcmp(argv[i], argv[j]) == 0 ){
+
+                fprintf(stderr,"Arguments are repeating!\n");
+            }
+        }
+
+        /// Verificare director de output
+        if (strcmp("-o", argv[i]) == 0){
+
+            if (i + 1 >= argc){
+                fprintf(stderr,"No output directory\n");
+                exit(EXIT_FAILURE);
+            }
+
+            /// Verificam daca avem flaguri de output consecutive -o -o -o 
+            if (strcmp(argv[i+1],"-o") == 0){
+                fprintf(stderr, "No more than one -o flag can exist\n");
+                exit(EXIT_FAILURE);
+            }
+
+            ///Verificam daca mai incercam sa creem alte directoare de output
+            if (poz_dir_output != -1){
+                fprintf(stderr,"No more than one output directory can exist\n");
+            }
+
+            /// Daca nu exista directorul dupa -o il creem
+            if (lstat(argv[i + 1], &sb) < 0){
+                perror("Output directory");
+
+                /// Nu avem director deci creem (Output_dir nume default daca nu avem output dir deja existent)
+                if (mkdir("Output_dir", 0755) == -1){
+
+                    perror("Couldn't create output directory!");
+                    exit(EXIT_FAILURE);
+                }
+                poz_dir_output = i + 1;
+            }
+
+            /// verificam daca argumentul dupa -o este director
+            if(!S_ISDIR(sb.st_mode)){
+
+                fprintf(stderr,"%s is not a directory");
+                exit(EXIT_FAILURE);
+            }
+            /// Daca am ajuns aici sigur i + 1 este output directory si exista
+            poz_dir_output = i + 1;
+        }
+
+
+    }
+
 
     /// Lstat citim datele lui argv[0] in sb (detalii in man 2 lstat / lab 4)
     if (lstat(argv[1], &sb) < 0){
