@@ -61,31 +61,59 @@ int has_snapshot(const char *dirname, const char *output_dir){
     return access(snapshot, F_OK) == 0;
 }
 
-void create_snapshot(const char *dirname, const char *output_dir){
 
+
+int compare_snapshots(const char *snapshot1_path, const char *snapshot2_path) {
+    int fd1 = open(snapshot1_path, O_RDONLY);
+    int fd2 = open(snapshot2_path, O_RDONLY);
+
+    if (fd1 < 0 || fd2 < 0) {
+        perror("Error opening snapshot files");
+        exit(EXIT_FAILURE);
+    }
+
+    // Compară conținutul fișierelor byte cu byte
+    char buffer1[BUFFER_SIZE];
+    char buffer2[BUFFER_SIZE];
+    ssize_t bytes_read1, bytes_read2;
+
+    do {
+        bytes_read1 = read(fd1, buffer1, BUFFER_SIZE);
+        bytes_read2 = read(fd2, buffer2, BUFFER_SIZE);
+
+        if (bytes_read1 != bytes_read2 || memcmp(buffer1, buffer2, bytes_read1) != 0) {
+            // Dacă se găsește o diferență, închide fișierele și returnează false
+            close(fd1);
+            close(fd2);
+            return 0;
+        }
+    } while (bytes_read1 > 0 && bytes_read2 > 0);
+
+    // Închide fișierele și returnează true dacă nu s-au găsit diferențe
+    close(fd1);
+    close(fd2);
+    return 1;
+}
+
+void create_snapshot(const char *dirname, const char *output_dir) {
     char snapshot_name[MAX_FILENAME_LEN];
     char old_snapshot_name[MAX_FILENAME_LEN];
-    
-    /// Ne construim path ul
     snprintf(snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot", output_dir, dirname);
-    snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot_old", output_dir, dirname);
+    snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%s.old", output_dir, dirname);
 
-    // Verificam daca nu avem deja un snapshot
+    // Check if there is an existing snapshot
     int snapshot_fd = open(snapshot_name, O_RDONLY);
-
     if (snapshot_fd >= 0) {
-        // Avem un snapshot, deci il citim cu un buffer (pt simplitate am folosit buffer static :) )
+        // If there is an existing snapshot, read its content
         char existing_snapshot_text[BUFFER_SIZE];
         ssize_t bytes_read = read(snapshot_fd, existing_snapshot_text, BUFFER_SIZE);
-
         if (bytes_read < 0) {
             perror("Error reading existing snapshot");
             exit(EXIT_FAILURE);
         }
-
         close(snapshot_fd);
 
-        /// Extragem metadatele pentru directorul apelat si facem noul snapshot
+        // Collect metadata for the target directory
         FileMetadata dir_metadata;
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
             char new_snapshot_text[BUFFER_SIZE];
@@ -98,40 +126,37 @@ void create_snapshot(const char *dirname, const char *output_dir){
                      dir_metadata.permissions
                      );
             
-            /// Daca exista modificari redenumim fisierul
+            // Check if the new snapshot text differs from the existing one
             if (bytes_read != strlen(new_snapshot_text) || memcmp(existing_snapshot_text, new_snapshot_text, bytes_read) != 0) {
-                /// Redenumim
+                // If there's a difference, rename the existing snapshot to old
                 if (rename(snapshot_name, old_snapshot_name) != 0) {
                     perror("Error renaming old snapshot");
                     exit(EXIT_FAILURE);
                 }
                 printf("Old snapshot renamed: %s\n", old_snapshot_name);
 
-                /// Il creem pe cel nou cu numele .snapshot
+                // Create a new snapshot
                 int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
                 if (new_snapshot_fd < 0) {
                     perror("Error creating snapshot file");
                     exit(EXIT_FAILURE);
                 }
-
                 write(new_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
                 close(new_snapshot_fd);
                 printf("Snapshot updated for directory: %s\n", dirname);
-
             } else {
-                /// Nu avem nici o modificare
                 printf("No modification detected. Snapshot remains unchanged for directory: %s\n", dirname);
             }
         }
     } else {
-        // Nu avem snapshot deci creem unul
+        // If there is no existing snapshot, create a new one
         int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (new_snapshot_fd < 0) {
             perror("Error creating snapshot file");
             exit(EXIT_FAILURE);
         }
 
-        // De data asta cu metadatele creem snapshotul pt ca nu avem cu cine compara
+        // Collect metadata for the target directory and write it to the snapshot
         FileMetadata dir_metadata;
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
             char metadata_text[BUFFER_SIZE];
@@ -146,13 +171,14 @@ void create_snapshot(const char *dirname, const char *output_dir){
             write(new_snapshot_fd, metadata_text, strlen(metadata_text));
         }
 
-        /// Recursiv facem update la tot ce e in director
+        // Traverse the rest of the directory
         create_recursive_snapshot(dirname, new_snapshot_fd);
 
         close(new_snapshot_fd);
         printf("Snapshot created successfully for directory: %s\n", dirname);
     }
 }
+
 
 
 /// Scriere intreaga a ierarhii de directoare inc. subdir
