@@ -125,30 +125,40 @@ void create_snapshot(const char *dirname, const char *output_dir) {
                      (long)dir_metadata.nlinks, 
                      dir_metadata.permissions
                      );
+
             
+            // Create a new snapshot
+            int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+            if (new_snapshot_fd < 0) {
+                perror("Error creating snapshot file");
+                exit(EXIT_FAILURE);
+            }
+
+            create_recursive_snapshot(dirname, new_snapshot_fd);
+            write(new_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
+            close(new_snapshot_fd);
+
+            printf("%s\n***\n%s",existing_snapshot_text,new_snapshot_text);
+            printf("MEMCMP - %d\n %ld\n %ld\n",memcmp(existing_snapshot_text, new_snapshot_text, bytes_read), bytes_read, strlen(new_snapshot_text));
+
             // Check if the new snapshot text differs from the existing one
             if (bytes_read != strlen(new_snapshot_text) || memcmp(existing_snapshot_text, new_snapshot_text, bytes_read) != 0) {
+
                 // If there's a difference, rename the existing snapshot to old
                 if (rename(snapshot_name, old_snapshot_name) != 0) {
                     perror("Error renaming old snapshot");
                     exit(EXIT_FAILURE);
                 }
                 printf("Old snapshot renamed: %s\n", old_snapshot_name);
-
-                // Create a new snapshot
-                int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                if (new_snapshot_fd < 0) {
-                    perror("Error creating snapshot file");
-                    exit(EXIT_FAILURE);
-                }
-                write(new_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
-                close(new_snapshot_fd);
                 printf("Snapshot updated for directory: %s\n", dirname);
             } else {
                 printf("No modification detected. Snapshot remains unchanged for directory: %s\n", dirname);
             }
+
         }
-    } else {
+    } 
+    else {
         // If there is no existing snapshot, create a new one
         int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (new_snapshot_fd < 0) {
