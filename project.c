@@ -96,25 +96,33 @@ int compare_snapshots(const char *snapshot1_path, const char *snapshot2_path) {
 }
 
 void create_snapshot(const char *dirname, const char *output_dir) {
+
     char snapshot_name[MAX_FILENAME_LEN];
+    char temporary_snapshot[MAX_FILENAME_LEN];
     char old_snapshot_name[MAX_FILENAME_LEN];
+
     snprintf(snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot", output_dir, dirname);
-    snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%s.old", output_dir, dirname);
+    snprintf(temporary_snapshot, MAX_FILENAME_LEN, "%s/%s.snapshot_temp", output_dir, dirname);
+    snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot_old", output_dir, dirname);
 
     // Check if there is an existing snapshot
     int snapshot_fd = open(snapshot_name, O_RDONLY);
+
     if (snapshot_fd >= 0) {
         // If there is an existing snapshot, read its content
         char existing_snapshot_text[BUFFER_SIZE];
+        strcpy(existing_snapshot_text,"");
         ssize_t bytes_read = read(snapshot_fd, existing_snapshot_text, BUFFER_SIZE);
+
         if (bytes_read < 0) {
             perror("Error reading existing snapshot");
             exit(EXIT_FAILURE);
         }
         close(snapshot_fd);
 
-        // Collect metadata for the target directory
+        // Creem un nou snapshot temporar pentru directorul target
         FileMetadata dir_metadata;
+
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
             char new_snapshot_text[BUFFER_SIZE];
             snprintf(new_snapshot_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
@@ -127,49 +135,64 @@ void create_snapshot(const char *dirname, const char *output_dir) {
                      );
 
             
-            // Create a new snapshot
-            int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            // Creem un snapshot pentru comparare
+            int temporary_snapshot_fd = open(temporary_snapshot, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
-            if (new_snapshot_fd < 0) {
-                perror("Error creating snapshot file");
+            if (temporary_snapshot_fd < 0) {
+                perror("Error creating compare snapshot file");
                 exit(EXIT_FAILURE);
             }
 
-            create_recursive_snapshot(dirname, new_snapshot_fd);
-            write(new_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
-            close(new_snapshot_fd);
-
-            printf("%s\n***\n%s",existing_snapshot_text,new_snapshot_text);
-            printf("MEMCMP - %d\n %ld\n %ld\n",memcmp(existing_snapshot_text, new_snapshot_text, bytes_read), bytes_read, strlen(new_snapshot_text));
-
-            // Check if the new snapshot text differs from the existing one
-            if (bytes_read != strlen(new_snapshot_text) || memcmp(existing_snapshot_text, new_snapshot_text, bytes_read) != 0) {
-
-                // If there's a difference, rename the existing snapshot to old
+            
+            write(temporary_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
+            create_recursive_snapshot(dirname, temporary_snapshot_fd);
+            close(temporary_snapshot_fd);
+            
+            /// Nu sunt identice
+            if (compare_snapshots(snapshot_name, temporary_snapshot) != 1){
+                
+                // Am gasit o diferenta deci temp devine actual si acual devine old
                 if (rename(snapshot_name, old_snapshot_name) != 0) {
                     perror("Error renaming old snapshot");
                     exit(EXIT_FAILURE);
                 }
+
+                if (rename(temporary_snapshot, snapshot_name) != 0) {
+                    perror("Error renaming new snapshot");
+                    exit(EXIT_FAILURE);
+                }
+
                 printf("Old snapshot renamed: %s\n", old_snapshot_name);
                 printf("Snapshot updated for directory: %s\n", dirname);
-            } else {
+            }
+            else{
+
                 printf("No modification detected. Snapshot remains unchanged for directory: %s\n", dirname);
+
+                ///Stergem snapshotul temporar
+                if (unlink(temporary_snapshot) == -1){
+                    perror("Error unlinking temporary snapshot");
+                    exit(EXIT_FAILURE);
+                }
             }
 
         }
     } 
     else {
-        // If there is no existing snapshot, create a new one
-        int new_snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (new_snapshot_fd < 0) {
+        // NU Exista dir.snapshot - > deci il creem
+
+        snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+        if (snapshot_fd < 0) {
             perror("Error creating snapshot file");
             exit(EXIT_FAILURE);
         }
 
         // Collect metadata for the target directory and write it to the snapshot
         FileMetadata dir_metadata;
+        char metadata_text[BUFFER_SIZE];
+
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
-            char metadata_text[BUFFER_SIZE];
             snprintf(metadata_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
                      dir_metadata.name, 
                      (unsigned long)dir_metadata.inode, 
@@ -178,13 +201,13 @@ void create_snapshot(const char *dirname, const char *output_dir) {
                      (long)dir_metadata.nlinks, 
                      dir_metadata.permissions
                      );
-            write(new_snapshot_fd, metadata_text, strlen(metadata_text));
+            write(snapshot_fd, metadata_text, strlen(metadata_text));
         }
 
         // Traverse the rest of the directory
-        create_recursive_snapshot(dirname, new_snapshot_fd);
+        create_recursive_snapshot(dirname, snapshot_fd);
+        close(snapshot_fd);
 
-        close(new_snapshot_fd);
         printf("Snapshot created successfully for directory: %s\n", dirname);
     }
 }
@@ -230,10 +253,13 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         (long)metadata.nlinks, 
                                         metadata.permissions
                                 );
+                write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele subdirectorului la snapshot
+
+                // Creăm snapshot-ul pentru subdirector recursiv
                 create_recursive_snapshot(subdir_path, snapshot_fd);
             } else if (S_ISREG(element.st_mode)) {
                 // Dacă este fișier, obține metadatele și le scrie în snapshot
-                    offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
+                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -241,15 +267,14 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         (long)metadata.nlinks, 
                                         metadata.permissions
                                 );
+                write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele fișierului la snapshot
             }
-
-            // Scrie metadatele în fișierul de snapshot
-            write(snapshot_fd, metadata_text, offset);
         }
     }
 
     closedir(dir);
 }
+
 
 void update_snapshot(const char *dirname, const char *output_dir) {
     create_snapshot(dirname, output_dir); // Suprascrie snapshot-ul existent cu cel nou
