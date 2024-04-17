@@ -22,11 +22,11 @@ typedef struct {
     mode_t permissions;
 } FileMetadata;
 
-int has_snapshot(const char *dirname);
-void create_snapshot(const char *dirname);
+int has_snapshot(const char *dirname, const char *output_dir);
+void create_snapshot(const char *dirname, const char *output_dir);
 void create_recursive_snapshot(const char *dirname, int snapshot_fd);
 int get_file_metadata(const char *filename, FileMetadata *metadata);
-void update_snapshot(const char *dirname);
+void update_snapshot(const char *dirname, const char *output_dir);
 
 
 int get_file_metadata(const char *filename, FileMetadata *metadata) {
@@ -46,13 +46,13 @@ int get_file_metadata(const char *filename, FileMetadata *metadata) {
     return 0;
 }
 
-int has_snapshot(const char *dirname){
+int has_snapshot(const char *dirname, const char *output_dir){
 
     char snapshot[MAX_FILENAME_LEN];
     strcpy(snapshot, ""); /// init
 
     /// Pentru primul apel daca nu am mai avut snapshot niciodata
-    if( snprintf(snapshot, MAX_FILENAME_LEN,"%s.snapshot", dirname) < 1 ){
+    if( snprintf(snapshot, MAX_FILENAME_LEN,"%s/%s.snapshot", output_dir, dirname) < 1 ){
         perror("Snapshot verify error");
         exit(EXIT_FAILURE);
     }
@@ -61,11 +61,11 @@ int has_snapshot(const char *dirname){
     return access(snapshot, F_OK) == 0;
 }
 
-void create_snapshot(const char *dirname) {
+void create_snapshot(const char *dirname, const char *output_dir){
 
     char snapshot_name[MAX_FILENAME_LEN];
     strcpy(snapshot_name,"");
-    snprintf(snapshot_name,MAX_FILENAME_LEN, "%s.snapshot", dirname);
+    snprintf(snapshot_name,MAX_FILENAME_LEN, "%s/%s.snapshot",output_dir, dirname);
 
     /// 0 -> octal, 6 -> wr- permissions, 4 -> r-- permissions
     int snapshot_fd = open(snapshot_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -158,8 +158,8 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
     closedir(dir);
 }
 
-void update_snapshot(const char *dirname) {
-    create_snapshot(dirname); // Suprascrie snapshot-ul existent cu cel nou
+void update_snapshot(const char *dirname, const char *output_dir) {
+    create_snapshot(dirname, output_dir); // Suprascrie snapshot-ul existent cu cel nou
 }
 
 int main(int argc, char *argv[]){
@@ -197,7 +197,7 @@ int main(int argc, char *argv[]){
 
             /// Verificam daca avem flaguri de output consecutive -o -o -o 
             if (strcmp(argv[i+1],"-o") == 0){
-                fprintf(stderr, "No more than one -o flag can exist\n");
+                fprintf(stderr, "No more than one -o flags can exist\n");
                 exit(EXIT_FAILURE);
             }
 
@@ -211,20 +211,30 @@ int main(int argc, char *argv[]){
                 perror("Output directory");
 
                 /// Nu avem director deci creem (Output_dir nume default daca nu avem output dir deja existent)
-                if (mkdir("Output_dir", 0755) == -1){
+                char output_dir[MAX_FILENAME_LEN];
+                strncpy(output_dir,argv[i + 1], MAX_FILENAME_LEN);
+
+                if (mkdir(output_dir, 0755) == -1){
 
                     perror("Couldn't create output directory!");
                     exit(EXIT_FAILURE);
                 }
                 poz_dir_output = i + 1;
             }
-
+            
+            /// In caz ca nu exista directorul si doar l-am creat
+            if (lstat(argv[i + 1], &sb) < 0){
+                perror("lstat for output directory test");
+                exit(EXIT_FAILURE);
+            }
+            
             /// verificam daca argumentul dupa -o este director
             if(!S_ISDIR(sb.st_mode)){
 
-                fprintf(stderr,"%s is not a directory");
+                fprintf(stderr,"%s is not a directory\n", argv[i]);
                 exit(EXIT_FAILURE);
             }
+
             /// Daca am ajuns aici sigur i + 1 este output directory si exista
             poz_dir_output = i + 1;
         }
@@ -232,25 +242,35 @@ int main(int argc, char *argv[]){
 
     }
 
+    /// Snapshot pentru fiecare director in output
+    for (i = 1; i < argc; i++){
 
-    /// Lstat citim datele lui argv[0] in sb (detalii in man 2 lstat / lab 4)
-    if (lstat(argv[1], &sb) < 0){
-        perror("lstat");
-        exit(EXIT_FAILURE);
-    }
+        /// Nu are sens sa facem snapshot pe directorul de output
+        if ( (i == poz_dir_output) || (i == poz_dir_output - 1) ){
+            continue;
+        }
 
-    /// Din sb extragem st_mode si folosim macro pt a verifica daca este un diretor (lab 4 jos de tot)
-    if (!S_ISDIR(sb.st_mode)){
-        fprintf(stderr, "%s is not a directory\n", argv[1]);
-        exit(EXIT_FAILURE);
-    }
+        /// Lstat citim datele lui argv[i] in stat (detalii in man 2 lstat / lab 4)
+        struct stat stat;
 
-    /// Daca am ajuns aici stim ca argv[1] este director
-    if (!has_snapshot(argv[1])){
-        create_snapshot(argv[1]);
-    }
-    else{
-        update_snapshot(argv[1]);
+        if (lstat(argv[i], &stat) < 0){
+            perror("lstat");
+            exit(EXIT_FAILURE);
+        }
+
+        /// Din stat extragem st_mode si folosim un macro pt a verifica daca este un director (lab 4 jos de tot)
+        if (!S_ISDIR(stat.st_mode)){
+            fprintf(stderr, "%s is not a directory\n", argv[i]);
+            exit(EXIT_FAILURE);
+        }
+
+        /// Daca am ajuns aici stim ca argv[i] este director
+        if (!has_snapshot(argv[i], argv[poz_dir_output])){
+            create_snapshot(argv[i], argv[poz_dir_output]);
+        }
+        else{
+            update_snapshot(argv[i], argv[poz_dir_output]);
+        }
     }
 
     return 0;
