@@ -3,12 +3,12 @@ Inode: 1446934
 Size: 4096
 Modification time: Wed Apr 17 18:26:14 2024
 Number of links: 2
-Permissions: rwxr-xr-x
+Permissions: 755
 
 File: dir_2/file.txt
 Inode: 1451235
 Size: 0
 Modification time: Wed Apr 17 06:42:09 2024
 Number of links: 1
-Permissions: rw-r--r--
+Permissions: 644
 

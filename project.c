@@ -13,55 +13,48 @@
 #define BUFFER_SIZE 2048
 
 
+/// Structura pentru metadatele necesare unui snapshot
 typedef struct {
     char name[MAX_FILENAME_LEN];
     ino_t inode;
     off_t size;
     time_t mtime;
     nlink_t nlinks;
-    mode_t permissions;
+    char permissions[10];
 } FileMetadata;
 
-int has_snapshot(const char *dirname, const char *output_dir);
 void create_snapshot(const char *dirname, const char *output_dir);
 void create_recursive_snapshot(const char *dirname, int snapshot_fd);
 int get_file_metadata(const char *filename, FileMetadata *metadata);
-void update_snapshot(const char *dirname, const char *output_dir);
 
 
 int get_file_metadata(const char *filename, FileMetadata *metadata) {
+
     struct stat file_stat;
+    mode_t octal_permissions;
+    char perms[] = "rwxrwxrwx";
+
     if (lstat(filename, &file_stat) == -1) {
         perror("Error getting file metadata");
         return -1;
     }
+
+    octal_permissions = file_stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+    for (int i = 0; i < 9; i++) {
+        if (!(octal_permissions & (1 << (8 - i))))
+            perms[i] = '-';
+    }
+
 
     strcpy(metadata->name, filename);
     metadata->inode = file_stat.st_ino;
     metadata->size = file_stat.st_size;
     metadata->mtime = file_stat.st_mtime;
     metadata->nlinks = file_stat.st_nlink;
-    metadata->permissions = file_stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+    strcpy(metadata->permissions,perms);
 
     return 0;
 }
-
-int has_snapshot(const char *dirname, const char *output_dir){
-
-    char snapshot[MAX_FILENAME_LEN];
-    strcpy(snapshot, ""); /// init
-
-    /// Pentru primul apel daca nu am mai avut snapshot niciodata
-    if( snprintf(snapshot, MAX_FILENAME_LEN,"%s/%s.snapshot", output_dir, dirname) < 1 ){
-        perror("Snapshot verify error");
-        exit(EXIT_FAILURE);
-    }
-
-    /// Man 2 access folosit cu  F_OK verif daca un fisier exista exista
-    return access(snapshot, F_OK) == 0;
-}
-
-
 
 int compare_snapshots(const char *snapshot1_path, const char *snapshot2_path) {
     int fd1 = open(snapshot1_path, O_RDONLY);
@@ -125,7 +118,7 @@ void create_snapshot(const char *dirname, const char *output_dir) {
 
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
             char new_snapshot_text[BUFFER_SIZE];
-            snprintf(new_snapshot_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
+            snprintf(new_snapshot_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                      dir_metadata.name, 
                      (unsigned long)dir_metadata.inode, 
                      (long)dir_metadata.size, 
@@ -193,7 +186,7 @@ void create_snapshot(const char *dirname, const char *output_dir) {
         char metadata_text[BUFFER_SIZE];
 
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
-            snprintf(metadata_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
+            snprintf(metadata_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                      dir_metadata.name, 
                      (unsigned long)dir_metadata.inode, 
                      (long)dir_metadata.size, 
@@ -245,7 +238,7 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
 
             if (S_ISDIR(element.st_mode)) {
                 // Dacă este subdirector, creează snapshot-ul pentru subdirector recursiv
-                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Subdirectory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
+                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Subdirectory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -259,7 +252,7 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                 create_recursive_snapshot(subdir_path, snapshot_fd);
             } else if (S_ISREG(element.st_mode)) {
                 // Dacă este fișier, obține metadatele și le scrie în snapshot
-                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %o\n\n",
+                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -275,14 +268,7 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
     closedir(dir);
 }
 
-
-void update_snapshot(const char *dirname, const char *output_dir) {
-    create_snapshot(dirname, output_dir); // Suprascrie snapshot-ul existent cu cel nou
-}
-
 int main(int argc, char *argv[]){
-
-    struct stat sb;
 
     /// Verificare numar argumente
     if (argc < 3 || argc > 13){
@@ -295,6 +281,7 @@ int main(int argc, char *argv[]){
     int i;
     int j;
     int poz_dir_output = -1;
+    struct stat sb;
 
     for (i = 1; i < argc; i++){
 
@@ -322,6 +309,7 @@ int main(int argc, char *argv[]){
             ///Verificam daca mai incercam sa creem alte directoare de output
             if (poz_dir_output != -1){
                 fprintf(stderr,"No more than one output directory can exist\n");
+                exit(EXIT_FAILURE);
             }
 
             /// Daca nu exista directorul dupa -o il creem
@@ -339,19 +327,18 @@ int main(int argc, char *argv[]){
                 }
                 poz_dir_output = i + 1;
             }
-            
-            /// In caz ca nu exista directorul si doar l-am creat
-            if (lstat(argv[i + 1], &sb) < 0){
-                perror("lstat for output directory test");
-                exit(EXIT_FAILURE);
-            }
 
             /// verificam daca argumentul dupa -o este director
-            if(!S_ISDIR(sb.st_mode)){
-
-                fprintf(stderr,"%s is not a directory\n", argv[i]);
+           if (lstat(argv[i + 1], &sb) < 0){
+                perror("Output director test eror");
                 exit(EXIT_FAILURE);
-            }
+           }
+           else{
+                if(!S_ISDIR(sb.st_mode)){
+                    fprintf(stderr,"%s is not a directory\n", argv[i + 1]);
+                    exit(EXIT_FAILURE);
+                }
+           }
 
             /// Daca am ajuns aici sigur i + 1 este output directory si exista
             poz_dir_output = i + 1;
@@ -378,17 +365,12 @@ int main(int argc, char *argv[]){
 
         /// Din stat extragem st_mode si folosim un macro pt a verifica daca este un director (lab 4 jos de tot)
         if (!S_ISDIR(stat.st_mode)){
-            fprintf(stderr, "%s is not a directory\n", argv[i]);
+            fprintf(stderr, "(Main) %s is not a directory\n", argv[i]);
             exit(EXIT_FAILURE);
         }
 
         /// Daca am ajuns aici stim ca argv[i] este director
-        if (!has_snapshot(argv[i], argv[poz_dir_output])){
-            create_snapshot(argv[i], argv[poz_dir_output]);
-        }
-        else{
-            update_snapshot(argv[i], argv[poz_dir_output]);
-        }
+        create_snapshot(argv[i], argv[poz_dir_output]);
     }
 
     return 0;
