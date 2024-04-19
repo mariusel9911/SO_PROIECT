@@ -276,8 +276,9 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
 }
 
 
+/// Sincer functia nu face multe dar parea mai ok de inteles decat sa nu apelez de doua ori create
 void update_snapshot(const char *dirname, const char *output_dir) {
-    create_snapshot(dirname, output_dir); // Suprascrie snapshot-ul existent cu cel nou
+    create_snapshot(dirname, output_dir); // Testeaza in create daca au aparut modificari sau nu
 }
 
 int main(int argc, char *argv[]){
