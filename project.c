@@ -256,7 +256,10 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
 
                 // Creăm snapshot-ul pentru subdirector recursiv
                 create_recursive_snapshot(subdir_path, snapshot_fd);
+
             } else if (S_ISREG(element.st_mode)) {
+                // +Verificare daca este fisier suspect
+                // ....
                 // Dacă este fișier, obține metadatele și le scrie în snapshot
                 offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
@@ -287,6 +290,7 @@ int main(int argc, char *argv[]){
     int i;
     int j;
     int poz_dir_output = -1;
+    int poz_dir_carantina = -1;
     struct stat sb;
 
     for (i = 1; i < argc; i++){
@@ -298,6 +302,7 @@ int main(int argc, char *argv[]){
             }
         }
 
+        //########## SE POATE MODULARIZA ############
         /// Verificare director de output
         if (strcmp("-o", argv[i]) == 0){
 
@@ -350,6 +355,58 @@ int main(int argc, char *argv[]){
             poz_dir_output = i + 1;
         }
 
+        /// ########## SE POATE MODULARIZA ############
+        /// Verificare director de carantina
+        if (strcmp("-x", argv[i]) == 0){
+
+            if (i + 1 >= argc){
+                fprintf(stderr,"No quarantine directory can be found along the arguments\n");
+                exit(EXIT_FAILURE);
+            }
+
+             /// Verificam daca avem flaguri de output consecutive -x -x -x 
+            if (strcmp(argv[i+1],"-x") == 0){
+                fprintf(stderr, "No more than one -x flags can exist\n");
+                exit(EXIT_FAILURE);
+            }
+
+            ///Verificam daca mai incercam sa creem alte directoare de carantina
+            if (poz_dir_carantina != -1){
+                fprintf(stderr,"No more than one quarantine directory can exist\n");
+                exit(EXIT_FAILURE);
+            }
+
+            /// Daca nu exista directorul dupa -x il creem
+            if (lstat(argv[i + 1], &sb) < 0){
+                printf("Trying to create quarantine directory...\n");
+                /// Nu avem director deci creem (quaratine_dir nume default daca nu avem quarantine dir deja existent)
+                char quaratine_dir[MAX_FILENAME_LEN];
+                strncpy(quaratine_dir,argv[i + 1], MAX_FILENAME_LEN);
+
+                if (mkdir(quaratine_dir, 0755) == -1){
+
+                    perror("Couldn't create quarantine directory!");
+                    exit(EXIT_FAILURE);
+                }
+                poz_dir_carantina = i + 1;
+                printf("Quarantine directory - %s created successfuly!\n\n", quaratine_dir);
+            }
+
+            /// verificam daca argumentul dupa -x este director
+           if (lstat(argv[i + 1], &sb) < 0){
+                perror("Quaratine director test eror");
+                exit(EXIT_FAILURE);
+           }
+           else{
+                if(!S_ISDIR(sb.st_mode)){
+                    fprintf(stderr,"%s is not a directory\n", argv[i + 1]);
+                    exit(EXIT_FAILURE);
+                }
+           }
+
+            /// Daca am ajuns aici sigur i + 1 este quaratine directory si exista
+            poz_dir_carantina = i + 1;
+        }
 
     }
 
@@ -357,7 +414,7 @@ int main(int argc, char *argv[]){
     for (i = 1; i < argc; i++){
 
         /// Nu are sens sa facem snapshot pe directorul de output
-        if ( (i == poz_dir_output) || (i == poz_dir_output - 1) ){
+        if ( (i == poz_dir_output) || (i == poz_dir_output - 1) || (i == poz_dir_carantina) || (i == poz_dir_carantina - 1)){
             continue;
         }
 
