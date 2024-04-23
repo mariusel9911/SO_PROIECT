@@ -8,6 +8,9 @@
 #include <string.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <errno.h>
+
 
 #define MAX_FILENAME_LEN 256
 #define BUFFER_SIZE 2048
@@ -98,11 +101,12 @@ void create_snapshot(const char *dirname, const char *output_dir) {
     snprintf(temporary_snapshot, MAX_FILENAME_LEN, "%s/%s.snapshot_temp", output_dir, dirname);
     snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot_old", output_dir, dirname);
 
-    // Check if there is an existing snapshot
+    // Verificam daca avem deja un snapshot existent
     int snapshot_fd = open(snapshot_name, O_RDONLY);
 
     if (snapshot_fd >= 0) {
-        // If there is an existing snapshot, read its content
+
+        // Daca avem unul citim datele din el
         char existing_snapshot_text[BUFFER_SIZE];
         strcpy(existing_snapshot_text,"");
         ssize_t bytes_read = read(snapshot_fd, existing_snapshot_text, BUFFER_SIZE);
@@ -128,7 +132,7 @@ void create_snapshot(const char *dirname, const char *output_dir) {
                      );
 
             
-            // Creem un snapshot pentru comparare
+            // Creem fisierul de snapshot pentru comparare
             int temporary_snapshot_fd = open(temporary_snapshot, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
             if (temporary_snapshot_fd < 0) {
@@ -136,11 +140,12 @@ void create_snapshot(const char *dirname, const char *output_dir) {
                 exit(EXIT_FAILURE);
             }
 
-            
+            // Il construim cu toata ierarhia de fisiere/directoare, iar pe urma le comparam
             write(temporary_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
             create_recursive_snapshot(dirname, temporary_snapshot_fd);
             close(temporary_snapshot_fd);
             
+
             /// Nu sunt identice
             if (compare_snapshots(snapshot_name, temporary_snapshot) != 1){
                 
@@ -167,6 +172,7 @@ void create_snapshot(const char *dirname, const char *output_dir) {
                     perror("Error unlinking temporary snapshot");
                     exit(EXIT_FAILURE);
                 }
+
             }
 
         }
@@ -181,7 +187,7 @@ void create_snapshot(const char *dirname, const char *output_dir) {
             exit(EXIT_FAILURE);
         }
 
-        // Collect metadata for the target directory and write it to the snapshot
+        // Luam metadeatele pentru directorul argument si le scriem in snapshot
         FileMetadata dir_metadata;
         char metadata_text[BUFFER_SIZE];
 
@@ -197,7 +203,7 @@ void create_snapshot(const char *dirname, const char *output_dir) {
             write(snapshot_fd, metadata_text, strlen(metadata_text));
         }
 
-        // Traverse the rest of the directory
+        // Parcurgem ierarhia subarborelui director
         create_recursive_snapshot(dirname, snapshot_fd);
         close(snapshot_fd);
 
@@ -220,7 +226,7 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
     while ((entry = readdir(dir)) != NULL) {
         /// ignorăm .. și . altfel loop infinit
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            // Calea către subdirector
+            // Calea către element
             char subdir_path[MAX_FILENAME_LEN];
             snprintf(subdir_path, MAX_FILENAME_LEN - 1, "%s/%.*s", dirname, (int)strlen(entry->d_name), entry->d_name);
 
@@ -356,22 +362,60 @@ int main(int argc, char *argv[]){
         }
 
         /// Lstat citim datele lui argv[i] in stat (detalii in man 2 lstat / lab 4)
-        struct stat stat;
+        //struct stat stat;
 
-        if (lstat(argv[i], &stat) < 0){
+        if (lstat(argv[i], &sb) < 0){
             perror("lstat");
             exit(EXIT_FAILURE);
         }
 
         /// Din stat extragem st_mode si folosim un macro pt a verifica daca este un director (lab 4 jos de tot)
-        if (!S_ISDIR(stat.st_mode)){
+        if (!S_ISDIR(sb.st_mode)){
             fprintf(stderr, "(Main) %s is not a directory\n", argv[i]);
-            exit(EXIT_FAILURE);
+        }
+        else{
+            /// Daca am ajuns aici stim ca argv[i] este director
+            /// Creem un proces nou
+            int pid = fork();
+
+            if (pid < 0){
+                perror("The fork failed!");
+                exit(EXIT_FAILURE);
+            }
+            else if (pid == 0){
+
+                /// Sunt in procesul copil
+                create_snapshot(argv[i], argv[poz_dir_output]);
+
+                /// Dupa ce imi fac snapshotul ies din procesul copil deoarece nu doresc sa prelucrez argumentele mai departe
+                /// doar cel curent, daca este director
+                exit(0);
+            }
+            
         }
 
-        /// Daca am ajuns aici stim ca argv[i] este director
-        create_snapshot(argv[i], argv[poz_dir_output]);
+        
     }
+
+    int status;
+    int pid_copil;
+    int process_number = 0;
+
+    do {
+        /// -1 pentru ca asteptam pentru orice process fiu
+        pid_copil = waitpid(-1, &status, 0);
+
+        if (pid_copil == -1) {
+            /// Nu mai avem procese fiu de asteptat
+            break;
+        }
+
+        /// S-a terminat procesul fiu si afisam PID si statusul la exit
+        if (WIFEXITED(status)) {
+            printf("Child process %d terminated with PID %d an exit code %d\n", ++process_number, pid_copil, WEXITSTATUS(status));
+        }
+
+    } while (1) ;
 
     return 0;
 }
