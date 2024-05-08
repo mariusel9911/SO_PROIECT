@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <libgen.h>
 
 
 #define MAX_FILENAME_LEN 256
@@ -257,11 +258,27 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                 // Creăm snapshot-ul pentru subdirector recursiv
                 create_recursive_snapshot(subdir_path, snapshot_fd);
 
-            } else if (S_ISREG(element.st_mode)) {
+            } 
+            else if (S_ISREG(element.st_mode)) {
                 // +Verificare daca este fisier suspect
+                // nepot - fiu - pipe
+                // fiu - parinte - cod retur
                 // ....
                 // Dacă este fișier, obține metadatele și le scrie în snapshot
                 offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+                                        metadata.name, 
+                                        (unsigned long)metadata.inode, 
+                                        (long)metadata.size, 
+                                        ctime(&metadata.mtime), 
+                                        (long)metadata.nlinks, 
+                                        metadata.permissions
+                                );
+                write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele fișierului la snapshot
+            }
+            else if(S_ISLNK(element.st_mode)){
+
+                /// same test as reg file
+                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Link: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -394,7 +411,7 @@ int main(int argc, char *argv[]){
 
             /// verificam daca argumentul dupa -x este director
            if (lstat(argv[i + 1], &sb) < 0){
-                perror("Quaratine director test eror");
+                perror("Quaratine director test error");
                 exit(EXIT_FAILURE);
            }
            else{
@@ -469,7 +486,7 @@ int main(int argc, char *argv[]){
 
         /// S-a terminat procesul fiu si afisam PID si statusul la exit
         if (WIFEXITED(status)) {
-            printf("Child process %d terminated with PID %d an exit code %d\n", ++process_number, pid_copil, WEXITSTATUS(status));
+            printf("Child process %d terminated with PID %d and exit code %d\n", ++process_number, pid_copil, WEXITSTATUS(status));
         }
 
     } while (1) ;
