@@ -103,10 +103,16 @@ int create_snapshot(const char *dirname, const char *output_dir) {
     int fisiere_suspecte = 0;
 
     /// Se modifica cu inode number... in loc de numer dir
+    struct stat d_dirname;
 
-    snprintf(snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot", output_dir, dirname);
-    snprintf(temporary_snapshot, MAX_FILENAME_LEN, "%s/%s.snapshot_temp", output_dir, dirname);
-    snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot_old", output_dir, dirname);
+    if (lstat(dirname, &d_dirname) == -1) {
+        perror("(create_snapshot) - inode - lstat error \n");
+        exit(EXIT_FAILURE);
+    }
+
+    snprintf(snapshot_name, MAX_FILENAME_LEN, "%s/%lu.snapshot", output_dir, d_dirname.st_ino);
+    snprintf(temporary_snapshot, MAX_FILENAME_LEN, "%s/%lu.snapshot_temp", output_dir, d_dirname.st_ino);
+    snprintf(old_snapshot_name, MAX_FILENAME_LEN, "%s/%lu.snapshot_old", output_dir, d_dirname.st_ino);
 
     // Verificam daca avem deja un snapshot existent
     int snapshot_fd = open(snapshot_name, O_RDONLY);
@@ -527,11 +533,18 @@ int main(int argc, char *argv[]){
             ///clean up izo_dir
             char command[32];
 
+            printf("Cleaning %s for new usage...\n", dir_carantina);
+            sleep(1);
             snprintf(command, 31, "rm -rf %.*s/*", (int)strlen(dir_carantina), dir_carantina);
             system(command);
+            printf("Cleaning sucessfuly!\n\n");
         }
 
     }
+
+    printf("Processing directories...\n");
+    sleep(1);
+    printf("=============================================================================\n");
 
     /// Snapshot pentru fiecare director in output
     for (i = 1; i < argc; i++){
@@ -605,5 +618,6 @@ int main(int argc, char *argv[]){
 
     } while (1) ;
 
+    printf("=============================================================================\n");
     return 0;
 }
