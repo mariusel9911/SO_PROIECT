@@ -8,6 +8,7 @@ fi
 
 # Numele fișierului de căutat
 file="$1"
+
 # ii dam permisiuni ca sa il putem verifica
 chmod 777 "$file"
 
@@ -26,21 +27,19 @@ characters=$(echo "$counts" | awk '{print $3}')
 #Testam conditii de fiser malitios - Criteriu I
 
 if [ "$lines" -le 3 ] && [ "$words" -gt 1000 ] && [ "$charcters" -gt 2000 ]; then
-    echo "$1"
-    chmod 000 "$file"
+    echo -n "$1"
+    chmod 444 "$file"
     exit 1
 fi
 
 # Caută cuvintele în fișier - Criteriu II
 
 if grep -q -E 'corrupted|dangerous|risk|attack|malware|malicious' "$file" || grep -q -P '[^\x00-\x7F]' "$file"; then
-    echo "$1"
-    chmod 000 "$file"
+    chmod 444 "$file"
+    echo -n "$1"
     exit 1
 else
-    echo "SAFE"
-    chmod 000 "$file"
+    chmod 444 "$file"
+    echo -n "SAFE"
     exit 0
 fi
-
-

@@ -1,7 +1,7 @@
 Directory: dir_2
 Inode: 1446934
 Size: 4096
-Modification time: Wed May  8 09:43:24 2024
+Modification time: Wed May  8 21:41:09 2024
 Number of links: 2
 Permissions: rwxr-xr-x
 
@@ -11,4 +11,11 @@ Size: 7
 Modification time: Wed May  8 09:43:24 2024
 Number of links: 1
 Permissions: rw-r--r--
+
+Link: dir_2/link_spre_fis
+Inode: 1450398
+Size: 8
+Modification time: Wed May  8 19:35:10 2024
+Number of links: 1
+Permissions: rwxrwxrwx
 

@@ -16,6 +16,8 @@
 #define MAX_FILENAME_LEN 256
 #define BUFFER_SIZE 2048
 
+char dir_carantina[BUFFER_SIZE];
+
 
 /// Structura pentru metadatele necesare unui snapshot
 typedef struct {
@@ -27,8 +29,8 @@ typedef struct {
     char permissions[10];
 } FileMetadata;
 
-void create_snapshot(const char *dirname, const char *output_dir);
-void create_recursive_snapshot(const char *dirname, int snapshot_fd);
+int create_snapshot(const char *dirname, const char *output_dir);
+int create_recursive_snapshot(const char *dirname, int snapshot_fd);
 int get_file_metadata(const char *filename, FileMetadata *metadata);
 
 
@@ -92,11 +94,15 @@ int compare_snapshots(const char *snapshot1_path, const char *snapshot2_path) {
     return 1;
 }
 
-void create_snapshot(const char *dirname, const char *output_dir) {
+int create_snapshot(const char *dirname, const char *output_dir) {
 
     char snapshot_name[MAX_FILENAME_LEN];
     char temporary_snapshot[MAX_FILENAME_LEN];
     char old_snapshot_name[MAX_FILENAME_LEN];
+
+    int fisiere_suspecte = 0;
+
+    /// Se modifica cu inode number... in loc de numer dir
 
     snprintf(snapshot_name, MAX_FILENAME_LEN, "%s/%s.snapshot", output_dir, dirname);
     snprintf(temporary_snapshot, MAX_FILENAME_LEN, "%s/%s.snapshot_temp", output_dir, dirname);
@@ -107,21 +113,14 @@ void create_snapshot(const char *dirname, const char *output_dir) {
 
     if (snapshot_fd >= 0) {
 
-        // Daca avem unul citim datele din el
-        char existing_snapshot_text[BUFFER_SIZE];
-        strcpy(existing_snapshot_text,"");
-        ssize_t bytes_read = read(snapshot_fd, existing_snapshot_text, BUFFER_SIZE);
-
-        if (bytes_read < 0) {
-            perror("Error reading existing snapshot");
-            exit(EXIT_FAILURE);
-        }
+        //Avem un snapshot existent din moment ce exista fisierul
         close(snapshot_fd);
 
         // Creem un nou snapshot temporar pentru directorul target
         FileMetadata dir_metadata;
 
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
+
             char new_snapshot_text[BUFFER_SIZE];
             snprintf(new_snapshot_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                      dir_metadata.name, 
@@ -138,15 +137,16 @@ void create_snapshot(const char *dirname, const char *output_dir) {
 
             if (temporary_snapshot_fd < 0) {
                 perror("Error creating compare snapshot file");
+                close(snapshot_fd);
                 exit(EXIT_FAILURE);
             }
 
             // Il construim cu toata ierarhia de fisiere/directoare, iar pe urma le comparam
             write(temporary_snapshot_fd, new_snapshot_text, strlen(new_snapshot_text));
-            create_recursive_snapshot(dirname, temporary_snapshot_fd);
+            fisiere_suspecte = create_recursive_snapshot(dirname, temporary_snapshot_fd);
             close(temporary_snapshot_fd);
             
-
+            
             /// Nu sunt identice
             if (compare_snapshots(snapshot_name, temporary_snapshot) != 1){
                 
@@ -177,6 +177,11 @@ void create_snapshot(const char *dirname, const char *output_dir) {
             }
 
         }
+        else{
+            /// Eroare nu putem face snapshot pentru directorul argument - NU am putut obtine datele pt snapshotul de comparare
+            exit(EXIT_FAILURE);
+        }
+
     } 
     else {
         // NU Exista dir.snapshot - > deci il creem
@@ -203,28 +208,46 @@ void create_snapshot(const char *dirname, const char *output_dir) {
                      );
             write(snapshot_fd, metadata_text, strlen(metadata_text));
         }
+        else{
+            /// Nu putem contrui snapshotul deoarece nu am putut obtine metadatele
+            exit(EXIT_FAILURE);
+        }
 
         // Parcurgem ierarhia subarborelui director
-        create_recursive_snapshot(dirname, snapshot_fd);
+        fisiere_suspecte = create_recursive_snapshot(dirname, snapshot_fd);
         close(snapshot_fd);
 
         printf("Snapshot created successfully for directory: %s\n", dirname);
     }
+
+    return fisiere_suspecte;
 }
 
 
 
 /// Scriere intreaga a ierarhii de directoare inc. subdir
-void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
+int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
     // Parcurge directoarele din directorul curent
     DIR *dir = opendir(dirname);
     if (dir == NULL) {
         perror("Error opening directory");
-        return;
+        return 0;
     }
 
     struct dirent *entry;
+    int pipefd[2];
+    char pipe_buffer[512];
+    static int fisiere_suspecte = 0;
+
+    strcpy(pipe_buffer,"");
+
     while ((entry = readdir(dir)) != NULL) {
+
+        if (pipe(pipefd) == -1) {
+            perror("pipe");
+            exit(EXIT_FAILURE);
+        }
+
         /// ignorăm .. și . altfel loop infinit
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
             // Calea către element
@@ -245,7 +268,7 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
 
             if (S_ISDIR(element.st_mode)) {
                 // Dacă este subdirector, creează snapshot-ul pentru subdirector recursiv
-                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Subdirectory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+                offset = snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Subdirectory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -254,6 +277,10 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         metadata.permissions
                                 );
                 write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele subdirectorului la snapshot
+
+                /// Golim bufferul 
+                strcpy(metadata_text,"");
+                offset = 0;
 
                 // Creăm snapshot-ul pentru subdirector recursiv
                 create_recursive_snapshot(subdir_path, snapshot_fd);
@@ -264,8 +291,72 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                 // nepot - fiu - pipe
                 // fiu - parinte - cod retur
                 // ....
+                if (!(element.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO))){
+                    //Avem posibilitate de fisier malitios
+
+                    /// fiul citeste, nu scrie
+                    int nepot = fork();
+
+                    if (nepot < 0){
+                        perror("Fork failed in child\n");
+                        exit(EXIT_FAILURE);
+                    } 
+                    else if( nepot == 0){
+                        /// In nepot facem verificarea de fiser malitios
+
+                        /// Facem redirectarea pipului de write cu stdout ca acolo scriem
+                        dup2(pipefd[1], 1);
+                        close(pipefd[1]);
+                        close(pipefd[0]);
+
+                        execlp("./verify.sh", "./verify.sh", metadata.name, NULL);
+                    }
+                    else{
+                        /// fiul asteapta dupa nepot
+                        //sleep(1);
+                        int nepot_status;
+                        close(pipefd[1]);
+
+                        /// Problema in wait ul pt nepot
+                        if ( wait(&nepot_status) < 0){
+                            perror("Nepot problem\n");
+                            exit(EXIT_FAILURE);
+                        }
+
+                        if (WIFEXITED(nepot_status)){
+
+                            read(pipefd[0],pipe_buffer,sizeof(pipe_buffer));
+                            close(pipefd[0]);
+
+                            printf("%s\n", pipe_buffer);
+
+                            /// Pe scurt puteam face ++ dar am facut scriptul sa imi dea 1 la exit daca e rau fisierul
+                            if (strcmp(pipe_buffer,"SAFE") != 0 ){
+
+                                //fisiere_suspecte += WIFEXITED(nepot_status);
+                                fisiere_suspecte++;
+                                
+                                /// Mutare in director carantina
+                                //printf("%s\n",dir_carantina);
+
+                                char command[BUFFER_SIZE];
+                                snprintf(command, BUFFER_SIZE, "cp ./%s ./%.*s", pipe_buffer, (int)strlen(dir_carantina), dir_carantina);
+
+                                system(command);
+
+                                memset(pipe_buffer, 0, sizeof(pipe_buffer));
+                                continue;
+                            }
+
+                            memset(pipe_buffer, 0, sizeof(pipe_buffer));
+                            
+                        }
+                    }
+
+                }
+
                 // Dacă este fișier, obține metadatele și le scrie în snapshot
-                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+                offset = snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -274,11 +365,14 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         metadata.permissions
                                 );
                 write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele fișierului la snapshot
+
+                /// Golim bufferul 
+                strcpy(metadata_text,"");
+                offset = 0;
             }
             else if(S_ISLNK(element.st_mode)){
 
-                /// same test as reg file
-                offset += snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Link: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+                offset = snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Link: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -287,11 +381,16 @@ void create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         metadata.permissions
                                 );
                 write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele fișierului la snapshot
+                
+                /// Golim bufferul 
+                strcpy(metadata_text,"");
+                offset = 0;
             }
         }
     }
 
     closedir(dir);
+    return fisiere_suspecte;
 }
 
 int main(int argc, char *argv[]){
@@ -423,6 +522,13 @@ int main(int argc, char *argv[]){
 
             /// Daca am ajuns aici sigur i + 1 este quaratine directory si exista
             poz_dir_carantina = i + 1;
+            snprintf(dir_carantina, MAX_FILENAME_LEN, "%s", argv[poz_dir_carantina]);
+
+            ///clean up izo_dir
+            char command[32];
+
+            snprintf(command, 31, "rm -rf %.*s/*", (int)strlen(dir_carantina), dir_carantina);
+            system(command);
         }
 
     }
@@ -457,13 +563,14 @@ int main(int argc, char *argv[]){
                 exit(EXIT_FAILURE);
             }
             else if (pid == 0){
-
+                
                 /// Sunt in procesul copil
-                create_snapshot(argv[i], argv[poz_dir_output]);
+                int nr_fisiere = 0;
+                nr_fisiere = create_snapshot(argv[i], argv[poz_dir_output]);
 
                 /// Dupa ce imi fac snapshotul ies din procesul copil deoarece nu doresc sa prelucrez argumentele mai departe
                 /// doar cel curent, daca este director
-                exit(0);
+                exit(nr_fisiere);
             }
             
         }
@@ -477,16 +584,23 @@ int main(int argc, char *argv[]){
 
     do {
         /// -1 pentru ca asteptam pentru orice process fiu
-        pid_copil = waitpid(-1, &status, 0);
+        pid_copil = wait(&status);
 
         if (pid_copil == -1) {
+
+            /// Aici a crapat comanda
+            if(errno != ECHILD){
+                perror("Waitpid error");
+                exit(EXIT_FAILURE);
+            }
+
             /// Nu mai avem procese fiu de asteptat
             break;
         }
 
         /// S-a terminat procesul fiu si afisam PID si statusul la exit
         if (WIFEXITED(status)) {
-            printf("Child process %d terminated with PID %d and exit code %d\n", ++process_number, pid_copil, WEXITSTATUS(status));
+            printf("Child process %d terminated with PID %d and with %d potential dangerous files\n", ++process_number, pid_copil, WEXITSTATUS(status));
         }
 
     } while (1) ;
