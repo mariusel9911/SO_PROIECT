@@ -50,7 +50,7 @@ Permissions: rw-rw-rw-
 Subdirectory: dir2/Subdirector1Dir2/lastdir
 Inode: 1451019
 Size: 4096
-Modification time: Fri May 10 21:24:10 2024
+Modification time: Fri May 10 21:21:52 2024
 Number of links: 2
 Permissions: rwxr-xr-x
 
@@ -60,11 +60,4 @@ Size: 0
 Modification time: Fri May 10 13:29:54 2024
 Number of links: 1
 Permissions: rw-r--r--
-
-File: dir2/Subdirector1Dir2/lastdir/senor.txt
-Inode: 1451021
-Size: 9875
-Modification time: Fri May 10 18:41:02 2024
-Number of links: 1
-Permissions: rw-rw-rw-
 

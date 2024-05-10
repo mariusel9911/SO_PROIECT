@@ -1,7 +1,7 @@
 Directory: dir1
 Inode: 1450960
 Size: 4096
-Modification time: Fri May 10 21:23:50 2024
+Modification time: Fri May 10 21:21:52 2024
 Number of links: 3
 Permissions: rwxr-xr-x
 
@@ -9,13 +9,6 @@ File: dir1/f2.txt
 Inode: 1451186
 Size: 33
 Modification time: Fri May 10 19:10:16 2024
-Number of links: 1
-Permissions: rw-rw-rw-
-
-File: dir1/f1.txt
-Inode: 1450967
-Size: 5
-Modification time: Wed May  8 21:19:08 2024
 Number of links: 1
 Permissions: rw-rw-rw-
 

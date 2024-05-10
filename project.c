@@ -175,7 +175,7 @@ int create_snapshot(const char *dirname_fp, const char *output_dir) {
                     exit(EXIT_FAILURE);
                 }
 
-                printf("Old snapshot renamed: %s\n", basename(old_snapshot_name));
+                printf("Old snapshot renamed: %s for %s\n", basename(old_snapshot_name), dirname);
                 printf("Snapshot updated for directory: %s\n", dirname);
             }
             else{
