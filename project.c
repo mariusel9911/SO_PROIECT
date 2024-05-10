@@ -441,7 +441,10 @@ void cleanQuarantine(){
     }
     else{
         /// Parinte
-        wait(&status);
+        if (wait(&status) == -1){
+            perror("(cleanQuarantine) wait error");
+            return;
+        }
 
         if(!WIFEXITED(status)){
             perror("(cleanQuarantine) Cleaning process failed!");
@@ -475,7 +478,10 @@ void moveToQuarantine(char *source_path, char *dest_path){
     }
     else{
         /// Parinte
-        wait(&status);
+        if (wait(&status) == -1){
+            perror("(moveToQuarantine) wait error");
+            return;
+        }
 
         if(!WIFEXITED(status)){
 

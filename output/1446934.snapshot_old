@@ -29,7 +29,7 @@ Permissions: rw-r--r--
 Subdirectory: dir2/Subdirector1Dir2
 Inode: 1451005
 Size: 4096
-Modification time: Fri May 10 14:19:46 2024
+Modification time: Fri May 10 19:38:11 2024
 Number of links: 3
 Permissions: rwxr-xr-x
 
@@ -43,7 +43,7 @@ Permissions: ---------
 Subdirectory: dir2/Subdirector1Dir2/lastdir
 Inode: 1451019
 Size: 4096
-Modification time: Fri May 10 13:30:32 2024
+Modification time: Fri May 10 19:38:11 2024
 Number of links: 2
 Permissions: rwxr-xr-x
 
