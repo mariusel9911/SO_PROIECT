@@ -10,7 +10,7 @@ Inode: 1451136
 Size: 0
 Modification time: Fri May 10 17:02:07 2024
 Number of links: 1
-Permissions: rw-r--r--
+Permissions: rw-rw-rw-
 
 File: dir2/audi.txt
 Inode: 1450677
@@ -38,14 +38,14 @@ Inode: 1451015
 Size: 0
 Modification time: Fri May 10 13:28:59 2024
 Number of links: 1
-Permissions: rw-------
+Permissions: rw-rw-rw-
 
 File: dir2/Subdirector1Dir2/engine.txt
 Inode: 1451018
 Size: 5
 Modification time: Fri May 10 13:31:57 2024
 Number of links: 1
-Permissions: rw-------
+Permissions: rw-rw-rw-
 
 Subdirectory: dir2/Subdirector1Dir2/lastdir
 Inode: 1451019
@@ -66,5 +66,5 @@ Inode: 1451021
 Size: 5
 Modification time: Fri May 10 13:30:32 2024
 Number of links: 1
-Permissions: rw-------
+Permissions: rw-rw-rw-
 

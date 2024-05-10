@@ -13,7 +13,7 @@
 #include <libgen.h>
 
 
-#define MAX_FILENAME_LEN 256
+#define MAX_FILENAME_LEN 512
 #define BUFFER_SIZE 2048
 
 char dir_carantina[MAX_FILENAME_LEN];
@@ -352,7 +352,7 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
 
                                 // Construim comanda care "muta" spre directorul carantina
                                 //snprintf(command, BUFFER_SIZE, "cp ./%s ./%.*s", pipe_buffer, (int)strlen(dir_carantina), dir_carantina);
-                                
+
                                 /// Mutam fisireul malitios in fisierul carantina
                                 moveToQuarantine(pipe_buffer, dir_carantina);
 
@@ -455,8 +455,8 @@ void moveToQuarantine(char *source_path, char *dest_path){
     int pid_move;
     int status;
 
-    char command[64]={0};
-    snprintf(command, 63, "cp ./%s ./%.*s", source_path, (int)strlen(dest_path), dest_path);
+    char command[512]={0};
+    snprintf(command, 511, "cp ./%s ./%.*s", source_path, (int)strlen(dest_path), dest_path);
 
     pid_move = fork();
 
