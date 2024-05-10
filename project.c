@@ -33,7 +33,7 @@ int create_snapshot(const char *dirname, const char *output_dir);
 int create_recursive_snapshot(const char *dirname, int snapshot_fd);
 int get_file_metadata(const char *filename, FileMetadata *metadata);
 void cleanQuarantine();
-void moveToQuarantine(char *command);
+void moveToQuarantine(char *source_path, char *dest_path);
 
 
 int get_file_metadata(const char *filename, FileMetadata *metadata) {
@@ -244,7 +244,7 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
 
     struct dirent *entry;
     int pipefd[2];
-    char pipe_buffer[512];
+    char pipe_buffer[512]={0};
     static int fisiere_suspecte = 0;
 
     strcpy(pipe_buffer,"");
@@ -351,9 +351,10 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                 fisiere_suspecte++;
 
                                 // Construim comanda care "muta" spre directorul carantina
-                                snprintf(command, BUFFER_SIZE, "cp ./%s ./%.*s", pipe_buffer, (int)strlen(dir_carantina), dir_carantina);
+                                //snprintf(command, BUFFER_SIZE, "cp ./%s ./%.*s", pipe_buffer, (int)strlen(dir_carantina), dir_carantina);
+                                
                                 /// Mutam fisireul malitios in fisierul carantina
-                                moveToQuarantine(command);
+                                moveToQuarantine(pipe_buffer, dir_carantina);
 
                                 /// Construim calea catre fisireul din carantina pt a scoate permisiunile
                                 snprintf(command, BUFFER_SIZE, "./%.*s/%s", (int)strlen(dir_carantina), dir_carantina, basename(pipe_buffer));
@@ -449,10 +450,13 @@ void cleanQuarantine(){
 
 }
 
-void moveToQuarantine(char *command){
+void moveToQuarantine(char *source_path, char *dest_path){
 
     int pid_move;
     int status;
+
+    char command[64]={0};
+    snprintf(command, 63, "cp ./%s ./%.*s", source_path, (int)strlen(dest_path), dest_path);
 
     pid_move = fork();
 

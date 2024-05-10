@@ -17,7 +17,7 @@ Inode: 1450967
 Size: 5
 Modification time: Wed May  8 21:19:08 2024
 Number of links: 1
-Permissions: rw-------
+Permissions: r--r--r--
 
 File: dir1/f3.txt
 Inode: 1451291
