@@ -456,7 +456,7 @@ void moveToQuarantine(char *source_path, char *dest_path){
     int status;
 
     char command[512]={0};
-    snprintf(command, 511, "cp ./%s ./%.*s", source_path, (int)strlen(dest_path), dest_path);
+    snprintf(command, 511, "mv ./%s ./%.*s", source_path, (int)strlen(dest_path), dest_path);
 
     pid_move = fork();
 
@@ -696,8 +696,6 @@ int main(int argc, char *argv[]){
             }
             
         }
-
-        
     }
 
     int status;
@@ -705,7 +703,6 @@ int main(int argc, char *argv[]){
     int process_number = 0;
 
     do {
-        /// -1 pentru ca asteptam pentru orice process fiu
         pid_copil = wait(&status);
 
         if (pid_copil == -1) {
