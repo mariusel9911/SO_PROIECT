@@ -38,7 +38,7 @@ Inode: 1451015
 Size: 0
 Modification time: Fri May 10 13:28:59 2024
 Number of links: 1
-Permissions: ---------
+Permissions: r--r--r--
 
 Subdirectory: dir2/Subdirector1Dir2/lastdir
 Inode: 1451019

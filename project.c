@@ -16,7 +16,7 @@
 #define MAX_FILENAME_LEN 256
 #define BUFFER_SIZE 2048
 
-char dir_carantina[BUFFER_SIZE];
+char dir_carantina[MAX_FILENAME_LEN];
 
 
 /// Structura pentru metadatele necesare unui snapshot
@@ -32,6 +32,8 @@ typedef struct {
 int create_snapshot(const char *dirname, const char *output_dir);
 int create_recursive_snapshot(const char *dirname, int snapshot_fd);
 int get_file_metadata(const char *filename, FileMetadata *metadata);
+void cleanQuarantine();
+void moveToQuarantine(char *command);
 
 
 int get_file_metadata(const char *filename, FileMetadata *metadata) {
@@ -102,7 +104,7 @@ int create_snapshot(const char *dirname, const char *output_dir) {
 
     int fisiere_suspecte = 0;
 
-    /// Se modifica cu inode number... in loc de numer dir
+    /// Se modifica cu inode number... in loc de nume dir
     struct stat d_dirname;
 
     if (lstat(dirname, &d_dirname) == -1) {
@@ -167,7 +169,7 @@ int create_snapshot(const char *dirname, const char *output_dir) {
                     exit(EXIT_FAILURE);
                 }
 
-                printf("Old snapshot renamed: %s\n", old_snapshot_name);
+                printf("Old snapshot renamed: %s\n", basename(old_snapshot_name));
                 printf("Snapshot updated for directory: %s\n", dirname);
             }
             else{
@@ -334,28 +336,41 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                             read(pipefd[0],pipe_buffer,sizeof(pipe_buffer));
                             close(pipefd[0]);
 
-                            printf("%s\n", pipe_buffer);
+                            /// Bugfix caractere NON_ASCII IN PIPE
+                            if (strstr(pipe_buffer,"SAFE")){
+                                pipe_buffer[4] = 0;
+                            }
 
-                            /// Pe scurt puteam face ++ dar am facut scriptul sa imi dea 1 la exit daca e rau fisierul
+                            printf("Pipe Buffer:%s\n", pipe_buffer);
+                            char command[BUFFER_SIZE] = {0};
+
+                            /// Pe scurt putem face ++ sau sa adunam ce scriptul trimite la exit (1 la exit daca e rau fisierul sau 0 daca e ok)
                             if (strcmp(pipe_buffer,"SAFE") != 0 ){
 
                                 //fisiere_suspecte += WIFEXITED(nepot_status);
                                 fisiere_suspecte++;
-                                
-                                /// Mutare in director carantina
-                                //printf("%s\n",dir_carantina);
 
-                                char command[BUFFER_SIZE];
+                                // Construim comanda care "muta" spre directorul carantina
                                 snprintf(command, BUFFER_SIZE, "cp ./%s ./%.*s", pipe_buffer, (int)strlen(dir_carantina), dir_carantina);
+                                /// Mutam fisireul malitios in fisierul carantina
+                                moveToQuarantine(command);
 
-                                system(command);
+                                /// Construim calea catre fisireul din carantina pt a scoate permisiunile
+                                snprintf(command, BUFFER_SIZE, "./%.*s/%s", (int)strlen(dir_carantina), dir_carantina, basename(pipe_buffer));
+                                chmod(command,000);
+
+                                /// Aici e doar pt ca avem cp dar cand se schimba cu mv nu mai trebuie
+                                snprintf(command, BUFFER_SIZE, "%.*s", (int)strlen(pipe_buffer), pipe_buffer);
+                                chmod(command,000);
+                                /// -------------------------
 
                                 memset(pipe_buffer, 0, sizeof(pipe_buffer));
                                 continue;
                             }
+                            else{
+                                memset(pipe_buffer, 0, sizeof(pipe_buffer));
+                            }
 
-                            memset(pipe_buffer, 0, sizeof(pipe_buffer));
-                            
                         }
                     }
 
@@ -399,12 +414,80 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
     return fisiere_suspecte;
 }
 
+void cleanQuarantine(){
+
+    char command[64];
+    int pid_clean;
+    int status;
+
+    printf("Cleaning %s for new usage...\n", dir_carantina);
+    sleep(1);
+
+    snprintf(command, 63, "rm -rf %.*s/*", (int)strlen(dir_carantina), dir_carantina);
+
+    pid_clean = fork();
+
+    if (pid_clean < 0){
+
+        perror("(cleanQuarantine) Fork failed");
+    }
+    else if (pid_clean == 0){
+        /// Copil
+        if ( execl("/bin/sh", "sh", "-c", command, (char *) 0) == -1){
+            
+            perror("(cleanQuarantine) Cleaning failed to begin!");
+        }
+    }
+    else{
+        /// Parinte
+        wait(&status);
+
+        if(!WIFEXITED(status)){
+            perror("(cleanQuarantine) Cleaning process failed!");
+        }
+    }
+
+}
+
+void moveToQuarantine(char *command){
+
+    int pid_move;
+    int status;
+
+    pid_move = fork();
+
+    if (pid_move < 0){
+
+        perror("(moveToQuarantine) Fork failed");
+        return;
+    }
+    else if (pid_move == 0){
+        /// Copil
+        if ( execl("/bin/sh", "sh", "-c", command, (char *) 0) == -1){
+            
+            perror("(moveToQuarantine) Moving process failed to begin!");
+            printf("Please rerun again the .exe file!");
+        }
+    }
+    else{
+        /// Parinte
+        wait(&status);
+
+        if(!WIFEXITED(status)){
+
+            perror("(moveToQuarantine) Moving process failed!");
+            printf("Please rerun again the .exe file!");
+        }
+    }
+
+}
+
 int main(int argc, char *argv[]){
 
     /// Verificare numar argumente
     if (argc < 3 || argc > 13){
 
-        fprintf(stderr, "Invalid number of arguments!\n Usage: %s <dir_name_0> ... -o <output_dir> ... <dir_name_n>\n", argv[0]);
+        fprintf(stderr, "Invalid number of arguments!\n Usage: %s <dir_name_0> ... -o <output_dir> ... -x <izolation_dir_name> ... <dir_name_n>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -421,6 +504,7 @@ int main(int argc, char *argv[]){
             if (strcmp(argv[i], argv[j]) == 0 ){
 
                 fprintf(stderr,"Arguments are repeating!\n");
+                exit(EXIT_FAILURE);
             }
         }
 
@@ -487,7 +571,7 @@ int main(int argc, char *argv[]){
             }
 
              /// Verificam daca avem flaguri de output consecutive -x -x -x 
-            if (strcmp(argv[i+1],"-x") == 0){
+            if (strcmp(argv[i + 1],"-x") == 0){
                 fprintf(stderr, "No more than one -x flags can exist\n");
                 exit(EXIT_FAILURE);
             }
@@ -500,18 +584,22 @@ int main(int argc, char *argv[]){
 
             /// Daca nu exista directorul dupa -x il creem
             if (lstat(argv[i + 1], &sb) < 0){
-                printf("Trying to create quarantine directory...\n");
-                /// Nu avem director deci creem (quaratine_dir nume default daca nu avem quarantine dir deja existent)
-                char quaratine_dir[MAX_FILENAME_LEN];
-                strncpy(quaratine_dir,argv[i + 1], MAX_FILENAME_LEN);
 
-                if (mkdir(quaratine_dir, 0755) == -1){
+                printf("Creating quarantine directory...\n");
+                sleep(1);
+                /// Nu avem director deci creem (quaratine_dir nume default daca nu avem quarantine dir deja existent)
+
+                strncpy(dir_carantina,argv[i + 1], MAX_FILENAME_LEN);
+
+                if (mkdir(dir_carantina, 0755) == -1){
 
                     perror("Couldn't create quarantine directory!");
                     exit(EXIT_FAILURE);
                 }
+
                 poz_dir_carantina = i + 1;
-                printf("Quarantine directory - %s created successfuly!\n\n", quaratine_dir);
+                printf("Quarantine directory - %s created successfuly!\n\n", dir_carantina);
+                continue;
             }
 
             /// verificam daca argumentul dupa -x este director
@@ -528,23 +616,40 @@ int main(int argc, char *argv[]){
 
             /// Daca am ajuns aici sigur i + 1 este quaratine directory si exista
             poz_dir_carantina = i + 1;
-            snprintf(dir_carantina, MAX_FILENAME_LEN, "%s", argv[poz_dir_carantina]);
-
-            ///clean up izo_dir
-            char command[32];
-
-            printf("Cleaning %s for new usage...\n", dir_carantina);
-            sleep(1);
-            snprintf(command, 31, "rm -rf %.*s/*", (int)strlen(dir_carantina), dir_carantina);
-            system(command);
-            printf("Cleaning sucessfuly!\n\n");
+            
+            /// Construim calea catre directorul carantina
+            snprintf(dir_carantina, BUFFER_SIZE, argv[poz_dir_carantina]);
         }
 
     }
 
+    /// Nu a fost specificat un director carantina, deci se creeaza unul default
+    if (poz_dir_carantina == -1){
+        
+        poz_dir_carantina = 0; /// 0 Doar daca nu a fost specificat
+        /// Verificam daca acesta exita deja
+        if (lstat("default_izolating", &sb) < 0){
+            
+            ///Nu exista deci il creem
+            printf("No quarantine directory specified, creating the default quarantine directory...\n");
+            sleep(1);
+
+            if (mkdir("default_izolating", 0755) == -1){
+
+                perror("Couldn't create quarantine directory!");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        /// Construim calea default indiferent daca avem default sau nu pt ca se creaza sau e deja creat
+        snprintf(dir_carantina, sizeof("default_izolating"), "default_izolating");
+    }
+
+    cleanQuarantine();
+
     printf("Processing directories...\n");
     sleep(1);
-    printf("=============================================================================\n");
+    printf("=======================================================================================\n");
 
     /// Snapshot pentru fiecare director in output
     for (i = 1; i < argc; i++){
@@ -614,10 +719,11 @@ int main(int argc, char *argv[]){
         /// S-a terminat procesul fiu si afisam PID si statusul la exit
         if (WIFEXITED(status)) {
             printf("Child process %d terminated with PID %d and with %d potential dangerous files\n", ++process_number, pid_copil, WEXITSTATUS(status));
+            printf("-------------------------------------------------------------------------------------\n");
         }
 
     } while (1) ;
 
-    printf("=============================================================================\n");
+    printf("=======================================================================================\n");
     return 0;
 }

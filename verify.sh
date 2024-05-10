@@ -39,7 +39,7 @@ if grep -q -E 'corrupted|dangerous|risk|attack|malware|malicious' "$file" || gre
     echo -n "$1"
     exit 1
 else
-    chmod 444 "$file"
+    chmod 000 "$file"
     echo -n "SAFE"
     exit 0
 fi
