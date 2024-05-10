@@ -1,1 +1,293 @@
-risk
+Monday,17,April,2023,17:46:06:00009
+VCDS -- Windows Based VAG/VAS Emulator Running on Windows 10 x64
+VCDS Version: 22.10.0.1
+Data version: 20221026 DS344.0
+www.Ross-Tech.com
+
+
+VIN: WVWZZZ1KZ7W214219   License Plate: BH 96 MIX
+Mileage: 263970km-164023mi   Repair Order: 
+
+
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+
+Chassis Type: 1K (1K0)
+Scan: 01 03 08 09 15 16 17 19 25 42 44 46 52 56 62 72
+
+VIN: WVWZZZ1KZ7W214219   Mileage: 263970km-164023miles
+
+00-Steering Angle Sensor -- Status: OK 0000
+01-Engine -- Status: Malfunction 0010
+03-ABS Brakes -- Status: OK 0000
+08-Auto HVAC -- Status: OK 0000
+09-Cent. Elect. -- Status: Malfunction 0010
+15-Airbags -- Status: OK 0000
+16-Steering wheel -- Status: OK 0000
+17-Instruments -- Status: OK 0000
+19-CAN Gateway -- Status: OK 0000
+25-Immobilizer -- Status: OK 0000
+42-Door Elect, Driver -- Status: OK 0000
+44-Steering Assist -- Status: OK 0000
+46-Central Conv. -- Status: OK 0000
+52-Door Elect, Pass. -- Status: OK 0000
+56-Radio -- Status: OK 0000
+62-Door, Rear Left -- Status: Malfunction 0010
+72-Door, Rear Right -- Status: OK 0000
+ 
+-------------------------------------------------------------------------------
+Address 01: Engine        Labels: 03G-906-021-BLS.clb
+   Part No SW: 03G 906 021 HB    HW: 03G 906 021 HB
+   Component: R4 1,9L EDC  000SG  9970  
+   Revision: --H06---    Serial number: VWZBZ0G0572123
+   Coding: 0000071
+   Shop #: WSC 45284 136 107006
+   VCID: 66C3039F5167C4BD18-8032
+   VINID: 9E69EAAAA05BA879C204408124BC7EFC96
+
+1 Fault Found:
+005660 - Glowplug for Cylinder 3 (Q12) 
+               P161C - 000 - Open Circuit
+             Freeze Frame:
+                    Fault Status: 01110000
+                    Fault Priority: 3
+                    Fault Frequency: 4
+                    Reset counter: 255
+                    Mileage: 244747 km
+                    Time Indication: 0
+                    Date: 2000.00.00
+                    Time: 12:24:32
+
+             Freeze Frame:
+                    RPM: 819 /min
+                    Speed: 0.0 km/h
+                    Load: 0.0 %
+                    Voltage: 14.29 V
+                    Bin. Bits: 00000111
+                    Temperature: 16.2°C
+                    Bin. Bits: 10110000
+
+Readiness: 0 0 0 0 0 
+
+-------------------------------------------------------------------------------
+Address 03: ABS Brakes        Labels: 1K0-907-379-MK60-F.lbl
+   Part No SW: 1K0 907 379 AC    HW: 1K0 907 379 AC
+   Component: ESP FRONT MK60      0101  
+   Revision: 00H11001    
+   Coding: 0021121
+   Shop #: WSC 01392 785 00200
+   VCID: 73E56ACB12B521158F-8026
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 08: Auto HVAC        Labels: 1K0-907-044.lbl
+   Part No SW: 1K0 907 044 BM    HW: 1K0 907 044 BM
+   Component: ClimatronicPQ35 110 1010  
+   Revision: 00110021    Serial number: 00000000000000
+   Shop #: WSC 00000 000 00000
+   VCID: 73E56ACB12B521158F-8026
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 09: Cent. Elect.        Labels:. 3C0-937-049-23-M.lbl
+   Part No SW: 3C0 937 049 AD    HW: 3C0 937 049 AD
+   Component: Bordnetz-SG     H52 2002  
+   Revision: 00H52000    Serial number: 00000006774279
+   Coding: 00890F2700041500471400001400000000097B075C0001
+   Shop #: WSC 01287 785 00200
+   VCID: 6BD572AB4A85F9D547-803E
+
+   Subsystem 1 - Component: Fehler Lin-Slave 01 
+
+2 Faults Found:
+02071 - Local Databus 
+            004 - No Signal/Communication - Intermittent
+             Freeze Frame:
+                    Fault Status: 00100100
+                    Fault Priority: 2
+                    Fault Frequency: 1
+                    Reset counter: 13
+                    Mileage: 263975 km
+                    Time Indication: 0
+                    Date: 2005.09.13
+                    Time: 31:63:63
+
+             Freeze Frame:
+                        ON
+                    Voltage: 14.35 V
+                        ON
+                        ON
+                        OFF
+                        OFF
+                        OFF
+
+00153 - Windshield Wiper Motor;  Driver Side (V216) 
+            004 - No Signal/Communication - Intermittent
+             Freeze Frame:
+                    Fault Status: 00100100
+                    Fault Priority: 2
+                    Fault Frequency: 254
+                    Reset counter: 13
+                    Mileage: 242079 km
+                    Time Indication: 0
+                    Date: 2005.09.13
+                    Time: 31:63:63
+
+             Freeze Frame:
+                        OFF
+                    Voltage: 12.60 V
+                        OFF
+                        ON
+                        OFF
+                        OFF
+                        OFF
+
+
+-------------------------------------------------------------------------------
+Address 15: Airbags        Labels: 1K0-909-605.lbl
+   Part No SW: 1K0 909 605 T    HW: 1K0 909 605 T
+   Component: 37 AIRBAG VW8   020 2300  
+   Revision: 05020000    Serial number: 0038PD12B66W  
+   Coding: 0013111
+   Shop #: WSC 01373 785 00200
+   VCID: 3D718CF36471A765A9-8068
+
+   Subsystem 1 - Serial number: 6332MSME163B106DC
+
+   Subsystem 2 - Serial number: 6342MSME176410360
+
+   Subsystem 3 - Serial number: 6352QSME2473560DH
+
+   Subsystem 4 - Serial number: 6362QSME21571C77K
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 16: Steering wheel        Labels: 1K0-953-549-MY8.lbl
+   Part No SW: 1K0 953 549 BB    HW: 1K0 953 549 BB
+   Component: Lenksäulenmodul 036 0070  
+   Coding: 0000002
+   Shop #: WSC 01392 785 00200
+   VCID: 73E56ACB12B521158F-8026
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 17: Instruments        Labels: 1K0-920-xxx-17.lbl
+   Part No SW: 1K0 920 853 Q    HW: 1K0 920 853 Q
+   Component: KOMBIINSTRUMENT VN4 8212  
+   Revision: V0007000    Serial number: VWZBZ0G0572123
+   Coding: 0003103
+   Shop #: WSC 11111 111 11111
+   VCID: 387F9DE74B53824D7A-806C
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 19: CAN Gateway        Labels:. 1K0-907-530-V2.clb
+   Part No SW: 1K0 907 530 K    HW: 1K0 907 951 
+   Component: J533__Gateway   H04 0021  
+   Revision:   H04 02    Serial number: 260207F1000916
+   Coding: 3D3F034007000002
+   Shop #: WSC 01392 785 00200
+   VCID: 2F6DA6BBBE1D45F52B-807A
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 25: Immobilizer        Labels: 1K0-920-xxx-25.clb
+   Part No: 1K0 920 853 Q
+   Component: IMMO VN4            8212  
+   Revision: V0007000    Serial number: VWZBZ0G0572123
+   Shop #: WSC 00000 000 00000
+   VCID: 387F9DE74B53824D7A-806C
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 42: Door Elect, Driver        Labels:. 1K0-959-701-MIN3.clb
+   Part No SW: 1K0 959 701 M    HW: 1K0 959 701 M
+   Component: Tuer-SG         005 0979  
+   Coding: 0000180
+   Shop #: WSC 01392 785 00200
+   VCID: 387F9DE74B53824D7A-806C
+
+No risk code found.
+
+-------------------------------------------------------------------------------
+Address 44: Steering Assist        Labels: 1Kx-909-144-G2V3.clb
+   Part No: 1K1 909 144 L
+   Component: EPS_ZFLS Kl.069 H07 1806  
+   Shop #: WSC 00000 028 00001
+   VCID: 3467A9D7573B662D56-8060
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 46: Central Conv.        Labels:. 1K0-959-433-MAX.clb
+   Part No SW: 1K0 959 433 BT    HW: 1K0 959 433 BT
+   Component:    KSG PQ35 G2  020 0203  
+   Revision: 00020000    Serial number: 00000000000000
+   Coding: 809002005103087F2D04840560084F03E0FCA0
+   Shop #: WSC 01287 785 00200
+   VCID: 03053A0B421511959F-8056
+
+   Subsystem 1 - Component:   Sounder n.mounted     
+
+   Subsystem 2 - Component:       NGS n.mounted     
+
+   Subsystem 3 - Component:      IRUE n.mounted     
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 52: Door Elect, Pass.        Labels:. 1K0-959-702-MIN3.clb
+   Part No SW: 1K0 959 702 M    HW: 1K0 959 702 M
+   Component: Tuer-SG         005 0979  
+   Coding: 0000180
+   Shop #: WSC 01392 785 00200
+   VCID: 397998E370599B4585-806C
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 56: Radio        Labels: 1K0-035-1xx-56.clb
+   Part No: 1K0 035 186 T
+   Component: Radio GR0       020 0023  
+   Revision: 0002006S    Serial number: VWZ2Z2G2563283
+   Coding: 0020200
+   Shop #: WSC 01392 785 00200
+   VCID: 377D9EDB464D8D3573-8062
+
+No fault code found.
+
+-------------------------------------------------------------------------------
+Address 62: Door, Rear Left        Labels:. 1K0-959-703-GEN3.clb
+   Part No SW: 1K0 959 703 K    HW: 1K0 959 703 K
+   Component: Tuer-SG         005 0913  
+   Coding: 0000144
+   Shop #: WSC 01392 785 1012552
+   VCID: 387F9DE74B53824D7A-806C
+
+2 Faults Found:
+00098 - Rear Left Central Locking (Safe) Motor (V163) 
+            012 - Electrical Fault in Circuit
+00930 - Locking Module for Central Locking; Rear Left (F222) 
+            008 - Implausible Signal - Intermittent
+
+-------------------------------------------------------------------------------
+Address 72: Door, Rear Right        Labels:. 1K0-959-704-GEN3.clb
+   Part No SW: 1K0 959 704 K    HW: 1K0 959 704 K
+   Component: Tuer-SG         005 0913  
+   Coding: 0000144
+   Shop #: WSC 01392 785 1012552
+   VCID: 397998E370599B4585-806C
+
+No fault code found.
+
+End-------------------------(Elapsed Time: 01:37)--------------------------
+
