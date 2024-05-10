@@ -618,7 +618,7 @@ int main(int argc, char *argv[]){
             poz_dir_carantina = i + 1;
             
             /// Construim calea catre directorul carantina
-            snprintf(dir_carantina, BUFFER_SIZE, argv[poz_dir_carantina]);
+            snprintf(dir_carantina, MAX_FILENAME_LEN, argv[poz_dir_carantina]);
         }
 
     }

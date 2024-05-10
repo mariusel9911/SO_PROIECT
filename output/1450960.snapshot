@@ -10,21 +10,14 @@ Inode: 1450968
 Size: 18
 Modification time: Wed May  8 21:40:42 2024
 Number of links: 1
-Permissions: r--r--r--
-
-File: dir1/f1.txt
-Inode: 1450967
-Size: 5
-Modification time: Wed May  8 21:19:08 2024
-Number of links: 1
-Permissions: r--r--r--
+Permissions: rw-r--r--
 
 File: dir1/f3.txt
 Inode: 1451291
 Size: 0
 Modification time: Wed Apr 17 04:28:13 2024
 Number of links: 1
-Permissions: r--r--r--
+Permissions: rw-r--r--
 
 Subdirectory: dir1/dir2
 Inode: 1450969
