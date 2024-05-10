@@ -1,32 +1,4 @@
-Directory: dir2
-Inode: 1446934
-Size: 4096
-Modification time: Fri May 10 17:02:07 2024
-Number of links: 3
-Permissions: rwxr-xr-x
-
-File: dir2/bmw.txt
-Inode: 1451136
-Size: 0
-Modification time: Fri May 10 17:02:07 2024
-Number of links: 1
-Permissions: rw-rw-rw-
-
-File: dir2/audi.txt
-Inode: 1450677
-Size: 0
-Modification time: Fri May 10 13:27:50 2024
-Number of links: 1
-Permissions: rw-r--r--
-
-File: dir2/bmx.txt
-Inode: 1450693
-Size: 0
-Modification time: Fri May 10 13:27:57 2024
-Number of links: 1
-Permissions: rw-r--r--
-
-Subdirectory: dir2/Subdirector1Dir2
+Directory: dir2/Subdirector1Dir2
 Inode: 1451005
 Size: 4096
 Modification time: Fri May 10 19:39:08 2024

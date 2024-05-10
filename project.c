@@ -53,7 +53,6 @@ int get_file_metadata(const char *filename, FileMetadata *metadata) {
             perms[i] = '-';
     }
 
-
     strcpy(metadata->name, filename);
     metadata->inode = file_stat.st_ino;
     metadata->size = file_stat.st_size;
@@ -96,11 +95,18 @@ int compare_snapshots(const char *snapshot1_path, const char *snapshot2_path) {
     return 1;
 }
 
-int create_snapshot(const char *dirname, const char *output_dir) {
+int create_snapshot(const char *dirname_fp, const char *output_dir) {
 
     char snapshot_name[MAX_FILENAME_LEN];
     char temporary_snapshot[MAX_FILENAME_LEN];
     char old_snapshot_name[MAX_FILENAME_LEN];
+
+    /// Se face parsare in caz ca argumentul este transmis cu "/" ex: dir1/
+    char dirname[MAX_FILENAME_LEN] = {0};
+    strncpy(dirname, dirname_fp, MAX_FILENAME_LEN - 1);
+    if (dirname[strlen(dirname) - 1] == '/'){
+        dirname[strlen(dirname) - 1] = 0;
+    }
 
     int fisiere_suspecte = 0;
 
@@ -204,9 +210,10 @@ int create_snapshot(const char *dirname, const char *output_dir) {
         // Luam metadeatele pentru directorul argument si le scriem in snapshot
         FileMetadata dir_metadata;
         char metadata_text[BUFFER_SIZE];
+        int bytes_written = 0;
 
         if (get_file_metadata(dirname, &dir_metadata) != -1) {
-            snprintf(metadata_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+            bytes_written = snprintf(metadata_text, BUFFER_SIZE, "Directory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                      dir_metadata.name, 
                      (unsigned long)dir_metadata.inode, 
                      (long)dir_metadata.size, 
@@ -214,7 +221,7 @@ int create_snapshot(const char *dirname, const char *output_dir) {
                      (long)dir_metadata.nlinks, 
                      dir_metadata.permissions
                      );
-            write(snapshot_fd, metadata_text, strlen(metadata_text));
+            write(snapshot_fd, metadata_text, bytes_written);
         }
         else{
             /// Nu putem contrui snapshotul deoarece nu am putut obtine metadatele
@@ -272,11 +279,11 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
             FileMetadata metadata;
             get_file_metadata(subdir_path, &metadata);
             char metadata_text[BUFFER_SIZE];
-            int offset = 0;
+            int bytes_written = 0;
 
             if (S_ISDIR(element.st_mode)) {
                 // Dacă este subdirector, creează snapshot-ul pentru subdirector recursiv
-                offset = snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Subdirectory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+                bytes_written = snprintf(metadata_text, BUFFER_SIZE,"Subdirectory: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -284,11 +291,8 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         (long)metadata.nlinks, 
                                         metadata.permissions
                                 );
-                write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele subdirectorului la snapshot
-
-                /// Golim bufferul 
-                strcpy(metadata_text,"");
-                offset = 0;
+                write(snapshot_fd, metadata_text, bytes_written); // Adăugăm metadatele subdirectorului la snapshot
+                bytes_written = 0;
 
                 // Creăm snapshot-ul pentru subdirector recursiv
                 create_recursive_snapshot(subdir_path, snapshot_fd);
@@ -378,7 +382,7 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                 }
 
                 // Dacă este fișier, obține metadatele și le scrie în snapshot
-                offset = snprintf(metadata_text + offset, BUFFER_SIZE - offset,"File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+                bytes_written = snprintf(metadata_text, BUFFER_SIZE, "File: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -386,15 +390,13 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         (long)metadata.nlinks, 
                                         metadata.permissions
                                 );
-                write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele fișierului la snapshot
+                write(snapshot_fd, metadata_text, bytes_written); // Adăugăm metadatele fișierului la snapshot
+                bytes_written = 0;
 
-                /// Golim bufferul 
-                strcpy(metadata_text,"");
-                offset = 0;
             }
             else if(S_ISLNK(element.st_mode)){
 
-                offset = snprintf(metadata_text + offset, BUFFER_SIZE - offset,"Link: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
+                bytes_written = snprintf(metadata_text, BUFFER_SIZE, "Link: %s\nInode: %lu\nSize: %ld\nModification time: %sNumber of links: %ld\nPermissions: %s\n\n",
                                         metadata.name, 
                                         (unsigned long)metadata.inode, 
                                         (long)metadata.size, 
@@ -402,11 +404,8 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                         (long)metadata.nlinks, 
                                         metadata.permissions
                                 );
-                write(snapshot_fd, metadata_text, offset); // Adăugăm metadatele fișierului la snapshot
-                
-                /// Golim bufferul 
-                strcpy(metadata_text,"");
-                offset = 0;
+                write(snapshot_fd, metadata_text, bytes_written); // Adăugăm metadatele fișierului la snapshot
+                bytes_written = 0;
             }
         }
     }
