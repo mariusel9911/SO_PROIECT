@@ -38,7 +38,14 @@ Inode: 1451015
 Size: 0
 Modification time: Fri May 10 13:28:59 2024
 Number of links: 1
-Permissions: ---------
+Permissions: rw-------
+
+File: dir2/Subdirector1Dir2/engine.txt
+Inode: 1451018
+Size: 5
+Modification time: Fri May 10 13:31:57 2024
+Number of links: 1
+Permissions: rw-------
 
 Subdirectory: dir2/Subdirector1Dir2/lastdir
 Inode: 1451019
@@ -53,4 +60,11 @@ Size: 0
 Modification time: Fri May 10 13:29:54 2024
 Number of links: 1
 Permissions: rw-r--r--
+
+File: dir2/Subdirector1Dir2/lastdir/senor.txt
+Inode: 1451021
+Size: 5
+Modification time: Fri May 10 13:30:32 2024
+Number of links: 1
+Permissions: rw-------
 

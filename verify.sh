@@ -24,6 +24,13 @@ characters=$(echo "$counts" | awk '{print $3}')
 #echo "Numărul de cuvinte: $words"
 #echo "Numărul de caractere: $characters"
 
+#Se poate si asa 
+: <<'comment'
+name=""
+
+read lines words characters name <<< $(wc -l -w -c "$file")
+comment
+
 #Testam conditii de fiser malitios - Criteriu I
 
 if [ "$lines" -le 3 ] && [ "$words" -gt 1000 ] && [ "$charcters" -gt 2000 ]; then
