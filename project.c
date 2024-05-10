@@ -16,7 +16,8 @@
 #define MAX_FILENAME_LEN 512
 #define BUFFER_SIZE 2048
 
-char dir_carantina[MAX_FILENAME_LEN];
+char dir_carantina[MAX_FILENAME_LEN] = {0};
+char dir_output[MAX_FILENAME_LEN] = {0};
 
 
 /// Structura pentru metadatele necesare unui snapshot
@@ -420,7 +421,7 @@ void cleanQuarantine(){
     int pid_clean;
     int status;
 
-    printf("Cleaning %s for new usage...\n", dir_carantina);
+    printf("Cleaning %s for new usage...\n\n", dir_carantina);
     sleep(1);
 
     snprintf(command, 63, "rm -rf %.*s/*", (int)strlen(dir_carantina), dir_carantina);
@@ -540,18 +541,23 @@ int main(int argc, char *argv[]){
 
             /// Daca nu exista directorul dupa -o il creem
             if (lstat(argv[i + 1], &sb) < 0){
-                perror("Output directory");
+
+                printf("Creating output directory...\n");
+                sleep(1);
 
                 /// Nu avem director deci creem (Output_dir nume default daca nu avem output dir deja existent)
-                char output_dir[MAX_FILENAME_LEN];
-                strncpy(output_dir,argv[i + 1], MAX_FILENAME_LEN);
+                strncpy(dir_output,argv[i + 1], MAX_FILENAME_LEN - 1);
 
-                if (mkdir(output_dir, 0755) == -1){
+                if (mkdir(dir_output, 0755) == -1){
 
-                    perror("Couldn't create output directory!");
+                    perror("Couldn't create output directory! - rerun .exe file");
                     exit(EXIT_FAILURE);
                 }
+
                 poz_dir_output = i + 1;
+                printf("Output directory - %s created successfuly!\n", dir_output);
+                sleep(1);
+                continue;
             }
 
             /// verificam daca argumentul dupa -o este director
@@ -568,6 +574,9 @@ int main(int argc, char *argv[]){
 
             /// Daca am ajuns aici sigur i + 1 este output directory si exista
             poz_dir_output = i + 1;
+
+            /// Construim calea catre directorul output
+            snprintf(dir_output, MAX_FILENAME_LEN, argv[poz_dir_output]);
         }
 
         /// ########## SE POATE MODULARIZA ############
@@ -598,7 +607,7 @@ int main(int argc, char *argv[]){
                 sleep(1);
                 /// Nu avem director deci creem (quaratine_dir nume default daca nu avem quarantine dir deja existent)
 
-                strncpy(dir_carantina,argv[i + 1], MAX_FILENAME_LEN);
+                strncpy(dir_carantina,argv[i + 1], MAX_FILENAME_LEN - 1);
 
                 if (mkdir(dir_carantina, 0755) == -1){
 
@@ -607,7 +616,7 @@ int main(int argc, char *argv[]){
                 }
 
                 poz_dir_carantina = i + 1;
-                printf("Quarantine directory - %s created successfuly!\n\n", dir_carantina);
+                printf("Quarantine directory - %s created successfuly!\n", dir_carantina);
                 continue;
             }
 
@@ -630,6 +639,27 @@ int main(int argc, char *argv[]){
             snprintf(dir_carantina, MAX_FILENAME_LEN, argv[poz_dir_carantina]);
         }
 
+    }
+    
+    if (poz_dir_output == -1){
+        
+        poz_dir_output = 0; /// 0 Doar daca nu a fost specificat
+        /// Verificam daca acesta exita deja
+        if (lstat("default_output", &sb) < 0){
+            
+            ///Nu exista deci il creem
+            printf("No output directory specified, creating the default output directory...\n");
+            sleep(1);
+
+            if (mkdir("default_output", 0755) == -1){
+
+                perror("Couldn't create quarantine directory!");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        /// Construim calea default indiferent daca avem default sau nu pt ca se creaza sau e deja creat
+        snprintf(dir_output, sizeof("default_output"), "default_output");
     }
 
     /// Nu a fost specificat un director carantina, deci se creeaza unul default
@@ -693,7 +723,7 @@ int main(int argc, char *argv[]){
                 
                 /// Sunt in procesul copil
                 int nr_fisiere = 0;
-                nr_fisiere = create_snapshot(argv[i], argv[poz_dir_output]);
+                nr_fisiere = create_snapshot(argv[i], dir_output);
 
                 /// Dupa ce imi fac snapshotul ies din procesul copil deoarece nu doresc sa prelucrez argumentele mai departe
                 /// doar cel curent, daca este director
