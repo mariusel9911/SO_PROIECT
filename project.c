@@ -347,7 +347,6 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                             }
 
                             printf("Pipe Buffer:%s\n", pipe_buffer);
-                            char command[BUFFER_SIZE] = {0};
 
                             /// Pe scurt putem face ++ sau sa adunam ce scriptul trimite la exit (1 la exit daca e rau fisierul sau 0 daca e ok)
                             if (strcmp(pipe_buffer,"SAFE") != 0 ){
@@ -355,20 +354,8 @@ int create_recursive_snapshot(const char *dirname, int snapshot_fd) {
                                 //fisiere_suspecte += WIFEXITED(nepot_status);
                                 fisiere_suspecte++;
 
-                                // Construim comanda care "muta" spre directorul carantina
-                                //snprintf(command, BUFFER_SIZE, "cp ./%s ./%.*s", pipe_buffer, (int)strlen(dir_carantina), dir_carantina);
-
                                 /// Mutam fisireul malitios in fisierul carantina
                                 moveToQuarantine(pipe_buffer, dir_carantina);
-
-                                /// Construim calea catre fisireul din carantina pt a scoate permisiunile
-                                snprintf(command, BUFFER_SIZE, "./%.*s/%s", (int)strlen(dir_carantina), dir_carantina, basename(pipe_buffer));
-                                chmod(command,000);
-
-                                /// Aici e doar pt ca avem cp dar cand se schimba cu mv nu mai trebuie
-                                snprintf(command, BUFFER_SIZE, "%.*s", (int)strlen(pipe_buffer), pipe_buffer);
-                                chmod(command,000);
-                                /// -------------------------
 
                                 memset(pipe_buffer, 0, sizeof(pipe_buffer));
                                 continue;
@@ -487,6 +474,12 @@ void moveToQuarantine(char *source_path, char *dest_path){
 
             perror("(moveToQuarantine) Moving process failed!");
             printf("Please rerun again the .exe file!");
+        }
+        else{
+            /// Construim calea catre fisireul din carantina pt a scoate permisiunile
+            snprintf(command, 511, "./%.*s/%s", (int)strlen(dir_carantina), dir_carantina, basename(source_path));
+            chmod(command,000);
+
         }
     }
 
